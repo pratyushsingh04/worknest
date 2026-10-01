@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { useCallback, useState } from "react";
 import { AnimatePresence, motion, useScroll, useSpring } from "motion/react";
-import { ArrowRight, Bell, Check, Eye, FolderKanban, KeyRound, ShieldCheck, Sparkles, UserPlus, Users } from "lucide-react";
+import { ArrowRight, Bell, Building2, Check, Eye, FolderKanban, KeyRound, ShieldCheck, Sparkles, UserPlus, Users } from "lucide-react";
 import { clsx } from "clsx";
 import { BeamsNetwork } from "@/components/landing/beams";
 import { Capabilities } from "@/components/landing/capabilities";
+import { ClientLanding } from "@/components/landing/client-landing";
 import { Faq } from "@/components/landing/faq";
 import { ForClients } from "@/components/landing/for-clients";
 import { Globe } from "@/components/landing/globe";
@@ -99,6 +100,28 @@ const roles = [
   },
 ];
 
+type Audience = "company" | "client";
+
+const audiences: { key: Audience; label: string; short: string; icon: typeof Eye }[] = [
+  { key: "company", label: "For companies", short: "Companies", icon: Building2 },
+  { key: "client", label: "For clients", short: "Clients", icon: Eye },
+];
+
+const companyNav = [
+  ["#pillars", "Platform"],
+  ["#capabilities", "Capabilities"],
+  ["#roles", "Solutions"],
+  ["#tour", "Tour"],
+  ["#faq", "FAQ"],
+];
+
+const clientNav = [
+  ["#portal", "Your portal"],
+  ["#record", "Track record"],
+  ["#access", "How it works"],
+  ["#faq", "FAQ"],
+];
+
 function Word({ children, delay, muted }: { children: string; delay: number; muted?: boolean }) {
   return (
     <span className="inline-block overflow-hidden pb-2 align-bottom">
@@ -117,6 +140,13 @@ export default function Landing() {
   const onIntroDone = useCallback(() => setReady(true), []);
   const { scrollYProgress } = useScroll();
   const progress = useSpring(scrollYProgress, { stiffness: 120, damping: 30 });
+  // The same page, told for two audiences; switching flips it over.
+  const [audience, setAudience] = useState<Audience>("company");
+  const switchTo = useCallback((next: Audience) => {
+    window.scrollTo({ top: 0 });
+    setAudience(next);
+  }, []);
+  const navLinks = audience === "company" ? companyNav : clientNav;
 
   return (
     <div className="bg-night text-white">
@@ -132,34 +162,60 @@ export default function Landing() {
         className="fixed inset-x-0 top-0 z-50 border-b border-white/5 bg-night/65 backdrop-blur-xl"
       >
         <div className={clsx(fullBleed, "flex h-16 items-center justify-between")}>
-          <span id="nav-logo">
-            <Logo dark />
-          </span>
-          <nav className="hidden items-center gap-8 text-sm text-white/60 lg:flex">
-            {[
-              ["#pillars", "Platform"],
-              ["#capabilities", "Capabilities"],
-              ["#clients", "For clients"],
-              ["#roles", "Solutions"],
-              ["#tour", "Tour"],
-              ["#faq", "FAQ"],
-            ].map(([href, label]) => (
+          <div className="flex items-center gap-4 sm:gap-6">
+            <span id="nav-logo">
+              <Logo dark />
+            </span>
+            <div className="flex rounded-full border border-white/10 bg-white/5 p-1 text-xs font-medium sm:text-sm" role="tablist" aria-label="Audience">
+              {audiences.map((a) => (
+                <button
+                  key={a.key}
+                  role="tab"
+                  aria-selected={audience === a.key}
+                  onClick={() => switchTo(a.key)}
+                  className={clsx("relative flex items-center gap-1.5 rounded-full px-3 py-1.5 transition-colors", audience === a.key ? "text-night" : "text-white/60 hover:text-white")}
+                >
+                  {audience === a.key && <motion.span layoutId="audience-pill" className="absolute inset-0 rounded-full bg-white" transition={{ type: "spring", stiffness: 380, damping: 32 }} />}
+                  <a.icon className="relative size-3.5" />
+                  <span className="relative sm:hidden">{a.short}</span>
+                  <span className="relative hidden sm:inline">{a.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+          <nav className="hidden items-center gap-8 text-sm text-white/60 xl:flex">
+            {navLinks.map(([href, label]) => (
               <a key={href} href={href} className="transition-colors hover:text-white">
                 {label}
               </a>
             ))}
           </nav>
           <div className="flex items-center gap-2">
-            <Link href="/login" className="rounded-xl px-3 py-2 text-sm font-medium text-white/70 transition-colors hover:text-white">
+            <Link href="/login" className="hidden rounded-xl px-3 py-2 text-sm font-medium whitespace-nowrap text-white/70 transition-colors hover:text-white md:block">
               Sign in
             </Link>
-            <Link href="/register" className="rounded-xl bg-white px-4 py-2 text-sm font-medium text-night transition-transform hover:scale-[1.03]">
+            <Link href="/register" className="hidden rounded-xl bg-white px-4 py-2 text-sm font-medium whitespace-nowrap text-night transition-transform hover:scale-[1.03] sm:block">
               Get started
             </Link>
           </div>
         </div>
       </motion.header>
 
+      <div className="overflow-x-clip">
+      <AnimatePresence mode="wait" initial={false}>
+      <motion.main
+        key={audience}
+        // Turns like a card around the middle of the screen.
+        style={{ transformPerspective: 2200, transformOrigin: "50% 50vh" }}
+        initial={{ rotateY: audience === "client" ? 90 : -90, opacity: 0, scale: 0.92 }}
+        animate={{ rotateY: 0, opacity: 1, scale: 1 }}
+        exit={{ rotateY: audience === "client" ? 90 : -90, opacity: 0, scale: 0.92 }}
+        transition={{ duration: 0.55, ease: easeOut }}
+      >
+      {audience === "client" ? (
+        <ClientLanding onShowCompany={() => switchTo("company")} />
+      ) : (
+      <>
       {/* Hero */}
       <section
         className="relative overflow-hidden pt-28 pb-16 xl:pt-32 xl:pb-20"
@@ -325,6 +381,14 @@ export default function Landing() {
         <div className="mt-16">
           <ForClients />
         </div>
+        <div className="mt-14 flex justify-center">
+          <Magnetic>
+            <button onClick={() => switchTo("client")} className="group inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-6 py-3.5 text-sm font-semibold backdrop-blur transition-colors hover:bg-white/10">
+              <Eye className="size-4" /> See WorkNest as a client
+              <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
+            </button>
+          </Magnetic>
+        </div>
       </section>
 
       {/* Solutions by role */}
@@ -458,6 +522,11 @@ export default function Landing() {
           </div>
         </Reveal>
       </section>
+      </>
+      )}
+      </motion.main>
+      </AnimatePresence>
+      </div>
 
       {/* Footer */}
       <footer className="border-t border-white/5 py-14">

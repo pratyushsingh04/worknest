@@ -4,7 +4,7 @@ import { motion } from "motion/react";
 import { Award, Check, Eye, MessagesSquare, Send, ThumbsUp, UsersRound } from "lucide-react";
 import { easeOut } from "@/components/motion";
 
-const benefits = [
+export const clientBenefits = [
   { icon: Eye, title: "See progress as it happens", text: "A live percentage and milestone timeline for every project, with no need to ask for an update." },
   { icon: UsersRound, title: "Know exactly who is on it", text: "The team behind the work, its lead and every member, visible from day one." },
   { icon: Award, title: "Judge by track record", text: "How many projects the company and each team have delivered, shown as real numbers from real work." },
@@ -21,7 +21,7 @@ const milestones = [
 ];
 
 /** What a client sees in their portal, drawn as a layered 3D preview. */
-function PortalPreview() {
+export function PortalPreview() {
   return (
     <div style={{ perspective: 1600 }}>
       <motion.div
@@ -115,7 +115,7 @@ export function ForClients() {
   return (
     <div className="grid items-center gap-16 lg:grid-cols-[1fr_1.05fr]">
       <div className="grid gap-4 sm:grid-cols-2">
-        {benefits.map((b, i) => (
+        {clientBenefits.map((b, i) => (
           <motion.div
             key={b.title}
             initial={{ opacity: 0, y: 24 }}
