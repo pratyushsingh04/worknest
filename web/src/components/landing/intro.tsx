@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { easeOut } from "@/components/motion";
+import { warmUp } from "@/lib/api";
 
 const NAME = "WorkNest";
 const SIZE = 96;
@@ -43,6 +44,8 @@ export function Intro({ onDone }: { onDone: () => void }) {
     // The flight and the curtain both take 0.9s; hand over to the page just after.
     setTimeout(finish, 1000);
   }, [finish]);
+
+  useEffect(warmUp, []);
 
   useEffect(() => {
     const play = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;

@@ -7,16 +7,32 @@ export class ApiError extends Error {
   }
 }
 
+// A sleeping server answers through the proxy with a gateway error until it has woken up.
+const WAKING = new Set([502, 504]);
+const RETRY_DELAYS = [2000, 4000, 6000, 8000, 10000, 10000, 10000, 10000];
+
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
-  const res = await fetch(`/api${path}`, {
-    method,
-    credentials: "include",
-    headers: body !== undefined ? { "Content-Type": "application/json" } : undefined,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new ApiError(res.status, data.error ?? `Request failed (${res.status})`);
-  return data as T;
+  for (let attempt = 0; ; attempt++) {
+    const res = await fetch(`/api${path}`, {
+      method,
+      credentials: "include",
+      headers: body !== undefined ? { "Content-Type": "application/json" } : undefined,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    }).catch(() => null);
+    if ((!res || WAKING.has(res.status)) && attempt < RETRY_DELAYS.length) {
+      await new Promise((r) => setTimeout(r, RETRY_DELAYS[attempt]));
+      continue;
+    }
+    if (!res) throw new ApiError(0, "Can't reach the server. Check your connection and try again.");
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new ApiError(res.status, data.error ?? (WAKING.has(res.status) ? "The server is still starting up. Please try again in a moment." : `Request failed (${res.status})`));
+    return data as T;
+  }
+}
+
+/** Wakes a sleeping server ahead of the first real request. */
+export function warmUp() {
+  fetch("/api/health").catch(() => {});
 }
 
 export const api = {

@@ -13,10 +13,11 @@ export function newToken(ttlMs: number) {
 export const RESET_TTL_MS = 60 * 60 * 1000;
 
 /** Replaces any unused reset links for the user with a fresh one and returns its URL. */
-export async function issuePasswordReset(userId: string, ttlMs = RESET_TTL_MS) {
+export async function issuePasswordReset(userId: string, ttlMs = RESET_TTL_MS, keepExisting = false) {
   const { token, tokenHash, expiresAt } = newToken(ttlMs);
   await prisma.$transaction([
-    prisma.passwordReset.deleteMany({ where: { userId, usedAt: null } }),
+    // keepExisting leaves earlier links working (only expired ones are cleared).
+    prisma.passwordReset.deleteMany({ where: { userId, usedAt: null, ...(keepExisting ? { expiresAt: { lt: new Date() } } : {}) } }),
     prisma.passwordReset.create({ data: { userId, tokenHash, expiresAt } }),
   ]);
   return `${config.clientOrigin}/reset-password/${token}`;

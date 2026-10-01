@@ -20,6 +20,11 @@ export async function ensureOwner({ newLink = false } = {}) {
     console.log(`Owner ${email} is already set up.`);
     return true;
   }
+  // The owner may have chosen a password already without having signed in yet.
+  if (owner && !newLink && (await prisma.passwordReset.count({ where: { userId: owner.id, usedAt: { not: null } } })) > 0) {
+    console.log(`Owner ${email} has set a password and can sign in.`);
+    return true;
+  }
   if (owner) {
     console.log(`Owner ${email} exists but has never signed in; issuing a new set-password link.`);
   } else {
@@ -41,7 +46,8 @@ export async function ensureOwner({ newLink = false } = {}) {
     console.log(`Created ${companyName} with ${name} <${email}> as founder, admin and platform owner.`);
   }
 
-  const link = await issuePasswordReset(owner.id, SEVEN_DAYS);
+  // A free host restarts often; links printed on earlier starts must keep working.
+  const link = await issuePasswordReset(owner.id, SEVEN_DAYS, true);
   console.log(`\nSet your password (works once, valid 7 days):\n  ${link}\n`);
   return true;
 }
