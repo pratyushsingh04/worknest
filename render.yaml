@@ -1,0 +1,24 @@
+# Render blueprint for the API (Express + Socket.io). The web app deploys to Vercel.
+services:
+  - type: web
+    name: worknest-api
+    runtime: node
+    rootDir: server
+    buildCommand: npm install --include=dev && npx prisma generate && npx tsc && npx prisma db push
+    startCommand: node dist/index.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false # paste the Neon (or other Postgres) connection string
+      - key: CLIENT_ORIGIN
+        sync: false # your Vercel URL, e.g. https://worknest.vercel.app
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_NAME
+        sync: false
+      - key: COMPANY_NAME
+        sync: false
