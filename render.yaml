@@ -7,7 +7,7 @@ services:
     region: singapore
     rootDir: server
     buildCommand: npm install --include=dev && npx prisma generate && npx tsc && npx prisma db push
-    startCommand: node dist/index.js
+    startCommand: npx tsx prisma/setup.ts; node dist/index.js
     healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV
@@ -19,7 +19,7 @@ services:
           name: worknest-db
           property: connectionString
       - key: CLIENT_ORIGIN
-        sync: false # your Vercel URL, e.g. https://worknest.vercel.app
+        value: https://worknest-snowy-five.vercel.app
       - key: ADMIN_EMAIL
         sync: false
       - key: ADMIN_NAME

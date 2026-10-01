@@ -22,8 +22,13 @@ async function main() {
   }
 
   let owner = await prisma.user.findUnique({ where: { email } });
+  if (owner?.lastLoginAt && !process.argv.includes('--new-link')) {
+    // Already set up and signed in: nothing to do (safe to run on every server start).
+    console.log(`Owner ${email} is already set up.`);
+    return;
+  }
   if (owner) {
-    console.log(`Owner ${email} already exists; issuing a new set-password link.`);
+    console.log(`Owner ${email} exists but has never signed in; issuing a new set-password link.`);
   } else {
     const slug = `${companyName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'company'}-${randomBytes(3).toString('hex')}`;
     owner = await prisma.user.create({
