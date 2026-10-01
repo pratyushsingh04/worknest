@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect } from "react";
-import { AlertCircle, ArrowRight, Briefcase, CalendarClock, CalendarX, Clock, FolderKanban, UserCheck, Users } from "lucide-react";
+import { AlertCircle, ArrowRight, Award, Briefcase, CalendarClock, CalendarX, Clock, FolderKanban, UserCheck, Users } from "lucide-react";
 import { useAuth } from "@/components/auth-provider";
 import { Stagger, StaggerItem } from "@/components/motion";
 import { ActivityFeed, PriorityBadge, ProjectCard } from "@/components/shared";
@@ -11,7 +11,8 @@ import { BannerChip, WelcomeBanner } from "@/components/welcome-banner";
 import { formatDate, formatTime, taskStatusLabel } from "@/lib/format";
 import { getSocket } from "@/lib/socket";
 import { useApi } from "@/lib/use-api";
-import type { Activity, AttendanceRecord, LeaveBalance, Milestone, Priority, ProjectSummary, Role, TaskStatus } from "@/lib/types";
+import type { Activity, AttendanceRecord, LeaveBalance, Milestone, Priority, ProjectSummary, Role, TaskStatus, TeamColor } from "@/lib/types";
+import { teamColor } from "@/lib/team-colors";
 
 interface StaffDashboard {
   role: Exclude<Role, "CLIENT">;
@@ -27,6 +28,8 @@ interface ClientDashboard {
   role: "CLIENT";
   projects: ProjectSummary[];
   awaitingApproval: (Milestone & { project: { id: string; name: string } })[];
+  trackRecord: { delivered: number; active: number; teams: number };
+  workingTeams: { id: string; name: string; color: TeamColor; lead: { name: string } | null; _count: { members: number } }[];
   updates: Activity[];
 }
 
@@ -206,6 +209,30 @@ function ClientView({ data, name }: { data: ClientDashboard; name: string }) {
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
+          <div className="mb-6 grid gap-4 sm:grid-cols-3">
+            <StatCard label="Projects delivered" value={data.trackRecord.delivered} hint="By this company, to date" icon={<Award className="size-4" />} tone="emerald" />
+            <StatCard label="In delivery now" value={data.trackRecord.active} hint="Active across all clients" icon={<FolderKanban className="size-4" />} tone="sky" />
+            <StatCard label="Teams you can hire" value={data.trackRecord.teams} hint="Browse their services" icon={<Users className="size-4" />} tone="violet" />
+          </div>
+          {data.workingTeams.length > 0 && (
+            <Card className="mb-6">
+              <CardHeader title="Teams working for you" />
+              <ul className="divide-y divide-line">
+                {data.workingTeams.map((t) => (
+                  <li key={t.id}>
+                    <Link href={`/teams/${t.id}`} className="flex items-center justify-between px-5 py-3 text-sm hover:bg-canvas">
+                      <span className="flex items-center gap-2.5">
+                        <span className={`size-2.5 rounded-full ${teamColor[t.color].dot}`} />
+                        <span className="font-medium">{t.name}</span>
+                        {t.lead && <span className="text-muted">· led by {t.lead.name}</span>}
+                      </span>
+                      <span className="text-muted">{t._count.members} people</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
           <h2 className="mb-3 text-sm font-semibold">Your projects</h2>
           {data.projects.length === 0 ? (
             <Card>

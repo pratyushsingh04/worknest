@@ -65,7 +65,7 @@ export function GeoMap({ className = "" }: { className?: string }) {
           transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
         />
         {!reduced && (
-          <motion.circle cx={OFFICE.x} cy={OFFICE.y} r={10} fill="none" stroke="#818cf8" strokeWidth="1" animate={{ r: [10, RADIUS], opacity: [0.7, 0] }} transition={{ duration: 2.4, repeat: Infinity, ease: "easeOut" }} />
+          <motion.circle cx={OFFICE.x} cy={OFFICE.y} r={10} fill="none" stroke="#818cf8" strokeWidth="1" initial={{ r: 10, opacity: 0.7 }} animate={{ r: [10, RADIUS], opacity: [0.7, 0] }} transition={{ duration: 2.4, repeat: Infinity, ease: "easeOut" }} />
         )}
         <text x={OFFICE.x + RADIUS - 6} y={OFFICE.y - RADIUS + 14} fontSize="8" fill="rgb(165 180 252 / 0.8)" textAnchor="end">
           200 m radius
@@ -83,15 +83,14 @@ export function GeoMap({ className = "" }: { className?: string }) {
           return (
             <g key={i}>
               <motion.circle
-                r="5"
                 stroke="#0d0e14"
                 strokeWidth="2"
-                initial={{ cx: reduced ? end[0] : xs[0], cy: reduced ? end[1] : ys[0], fill: reduced ? fills[n - 1] : fills[0] }}
+                initial={{ r: 5, cx: reduced ? end[0] : xs[0], cy: reduced ? end[1] : ys[0], fill: reduced ? fills[n - 1] : fills[0] }}
                 animate={reduced ? undefined : { cx: xs, cy: ys, fill: fills }}
                 transition={{ ...loop(p.delay), times }}
               />
               {p.inside >= 0 && !reduced && (
-                <motion.circle cx={end[0]} cy={end[1]} r={5} fill="none" stroke="#34d399" strokeWidth="1.5" animate={{ r: [5, 5, 16, 16], opacity: [0, 0.9, 0, 0] }} transition={{ ...loop(p.delay), times: [0, 0.5, 0.62, 1] }} />
+                <motion.circle cx={end[0]} cy={end[1]} r={5} fill="none" stroke="#34d399" strokeWidth="1.5" initial={{ r: 5, opacity: 0 }} animate={{ r: [5, 5, 16, 16], opacity: [0, 0.9, 0, 0] }} transition={{ ...loop(p.delay), times: [0, 0.5, 0.62, 1] }} />
               )}
             </g>
           );

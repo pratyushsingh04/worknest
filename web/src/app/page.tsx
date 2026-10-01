@@ -8,6 +8,7 @@ import { clsx } from "clsx";
 import { BeamsNetwork } from "@/components/landing/beams";
 import { Capabilities } from "@/components/landing/capabilities";
 import { Faq } from "@/components/landing/faq";
+import { ForClients } from "@/components/landing/for-clients";
 import { Globe } from "@/components/landing/globe";
 import { HeroMockup } from "@/components/landing/hero-mockup";
 import { Intro } from "@/components/landing/intro";
@@ -138,6 +139,7 @@ export default function Landing() {
             {[
               ["#pillars", "Platform"],
               ["#capabilities", "Capabilities"],
+              ["#clients", "For clients"],
               ["#roles", "Solutions"],
               ["#tour", "Tour"],
               ["#faq", "FAQ"],
@@ -311,6 +313,18 @@ export default function Landing() {
       {/* Capabilities */}
       <section id="capabilities" className={clsx(container, "pb-28 lg:pb-36")}>
         <Capabilities />
+      </section>
+
+      {/* What clients get */}
+      <section id="clients" className={clsx(container, "pb-28 lg:pb-36")}>
+        <SectionIntro
+          eyebrow="For your clients"
+          title="Just as valuable on the other side of the table."
+          lead="Clients don't have to take your word for it. They see who is working on their project, how far it has come and what your company has already delivered, all in their own portal."
+        />
+        <div className="mt-16">
+          <ForClients />
+        </div>
       </section>
 
       {/* Solutions by role */}
