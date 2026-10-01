@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { CalendarCheck, CheckCircle2, MapPin, ThumbsUp } from "lucide-react";
 import { Logo } from "./logo";
 import { easeOut } from "./motion";
+import { warmUp } from "@/lib/api";
 
 const feed = [
   { icon: MapPin, color: "text-emerald-300", title: "Check-in verified", sub: "Inside the office radius · on time" },
@@ -24,6 +25,7 @@ const week = [
 
 function LiveFeed() {
   const [start, setStart] = useState(0);
+  useEffect(warmUp, []);
   useEffect(() => {
     const id = setInterval(() => setStart((s) => (s + 1) % feed.length), 2600);
     return () => clearInterval(id);
