@@ -36,11 +36,11 @@ const faqs = [
   },
 ];
 
-export function Faq() {
+export function Faq({ items = faqs }: { items?: { q: string; a: string }[] }) {
   const [open, setOpen] = useState<number | null>(0);
   return (
     <div className="divide-y divide-white/10 rounded-[1.75rem] border border-white/10 bg-white/[0.02]">
-      {faqs.map((f, i) => {
+      {items.map((f, i) => {
         const isOpen = open === i;
         return (
           <div key={f.q}>

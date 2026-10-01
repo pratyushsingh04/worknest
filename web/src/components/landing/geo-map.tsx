@@ -83,6 +83,7 @@ export function GeoMap({ className = "" }: { className?: string }) {
           return (
             <g key={i}>
               <motion.circle
+                r={5}
                 stroke="#0d0e14"
                 strokeWidth="2"
                 initial={{ r: 5, cx: reduced ? end[0] : xs[0], cy: reduced ? end[1] : ys[0], fill: reduced ? fills[n - 1] : fills[0] }}
