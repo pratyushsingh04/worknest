@@ -116,6 +116,7 @@ const companyNav = [
 ];
 
 const clientNav = [
+  ["#journey", "See it in action"],
   ["#portal", "Your portal"],
   ["#record", "Track record"],
   ["#access", "How it works"],
