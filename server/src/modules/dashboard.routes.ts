@@ -43,7 +43,17 @@ dashboardRouter.get('/', async (req, res) => {
         take: 15,
       }),
     ]);
-    return res.json({ role: user.role, projects: projectCards, awaitingApproval, updates });
+    // The company's delivery record, so clients can judge it on real numbers.
+    const [delivered, active, teams, teamsForClient] = await Promise.all([
+      prisma.project.count({ where: { companyId: user.companyId, status: 'COMPLETED' } }),
+      prisma.project.count({ where: { companyId: user.companyId, status: 'ACTIVE' } }),
+      prisma.team.count({ where: { companyId: user.companyId, visibleToClients: true } }),
+      prisma.team.findMany({
+        where: { companyId: user.companyId, projects: { some: projectScope(user) } },
+        select: { id: true, name: true, color: true, lead: { select: { name: true } }, _count: { select: { members: true } } },
+      }),
+    ]);
+    return res.json({ role: user.role, projects: projectCards, awaitingApproval, updates, trackRecord: { delivered, active, teams }, workingTeams: teamsForClient });
   }
 
   const [myTasks, myAttendance, balance, recentActivity] = await Promise.all([
