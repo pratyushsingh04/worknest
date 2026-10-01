@@ -1,0 +1,13 @@
+{
+  "name": "worknest",
+  "private": true,
+  "scripts": {
+    "setup": "npm install && npm install --prefix server && npm install --prefix web && npm run init-env --prefix server && npm run db:setup",
+    "db:setup": "concurrently -k -s first -n db,init \"npm run db:start --prefix server\" \"wait-on tcp:5433 && npm run db:push --prefix server && npm run db:setup --prefix server\"",
+    "dev": "concurrently -k -n db,api,web -c gray,blue,magenta \"npm run db:start --prefix server\" \"wait-on tcp:5433 && npm run dev --prefix server\" \"npm run dev --prefix web\""
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.5",
+    "wait-on": "^9.5.1"
+  }
+}
