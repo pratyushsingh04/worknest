@@ -42,7 +42,7 @@ export async function ensureOwner({ newLink = false } = {}) {
         company: { create: { name: companyName, slug } },
       },
     });
-    await prisma.activity.create({ data: { companyId: owner.companyId, actorId: owner.id, message: `created the ${companyName} workspace` } });
+    await prisma.activity.create({ data: { companyId: owner.companyId!, actorId: owner.id, message: `created the ${companyName} workspace` } });
     console.log(`Created ${companyName} with ${name} <${email}> as founder, admin and platform owner.`);
   }
 

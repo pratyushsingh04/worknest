@@ -6,10 +6,10 @@ import { badRequest, forbidden, notFound } from '../lib/errors';
 import { logActivity } from '../lib/activity';
 import { progressFor } from '../lib/progress';
 import type { AuthUser } from '../lib/auth';
-import { currentUser, param, requireAuth, requireRole } from '../middleware/auth';
+import { currentUser, param, requireAuth, requireRole, requireStaff } from '../middleware/auth';
 
 export const teamsRouter = Router();
-teamsRouter.use(requireAuth);
+teamsRouter.use(requireAuth, requireStaff);
 
 export const TEAM_COLORS = ['indigo', 'emerald', 'sky', 'amber', 'rose', 'slate'] as const;
 
@@ -51,7 +51,7 @@ const personBrief = { select: { id: true, name: true, designation: true } } as c
 const serviceOrder = { orderBy: [{ position: 'asc' as const }, { createdAt: 'asc' as const }] };
 
 /** What a client is allowed to see about a team. */
-async function showcase(where: { companyId: string; id?: string }) {
+export async function showcase(where: { companyId: string; id?: string }) {
   const teams = await prisma.team.findMany({
     where: { ...where, visibleToClients: true },
     select: {
@@ -61,8 +61,8 @@ async function showcase(where: { companyId: string; id?: string }) {
       description: true,
       color: true,
       skills: true,
-      lead: { select: { name: true, designation: true } },
-      members: { select: { user: { select: { name: true, designation: true } } } },
+      lead: { select: { id: true, name: true, designation: true } },
+      members: { select: { user: { select: { id: true, name: true, designation: true } } } },
       services: { ...serviceOrder, select: { id: true, title: true, description: true, deliverables: true, turnaround: true, startingPrice: true } },
       _count: { select: { projects: { where: { status: 'COMPLETED' } } } },
     },
@@ -73,8 +73,6 @@ async function showcase(where: { companyId: string; id?: string }) {
 
 teamsRouter.get('/', async (req, res) => {
   const user = currentUser(req);
-  if (user.role === 'CLIENT') return res.json({ teams: await showcase({ companyId: user.companyId }) });
-
   const teams = await prisma.team.findMany({
     where: { companyId: user.companyId },
     include: {
@@ -91,12 +89,6 @@ teamsRouter.get('/', async (req, res) => {
 teamsRouter.get('/:id', async (req, res) => {
   const user = currentUser(req);
   const id = param(req, 'id');
-  if (user.role === 'CLIENT') {
-    const [team] = await showcase({ companyId: user.companyId, id });
-    if (!team) throw notFound('Team not found');
-    return res.json({ team });
-  }
-
   const team = await prisma.team.findFirst({
     where: { id, companyId: user.companyId },
     include: {

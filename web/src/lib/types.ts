@@ -13,10 +13,13 @@ export interface Me {
   role: Role;
   designation: string | null;
   department: string | null;
-  clientId: string | null;
+  phone: string | null;
+  /** A client's own business name. */
+  organisation: string | null;
+  bio: string | null;
   isPlatformAdmin: boolean;
-  company: { id: string; name: string; slug: string };
-  client: { id: string; name: string } | null;
+  /** Null for clients, who belong to no company. */
+  company: { id: string; name: string; slug: string; isListed: boolean } | null;
 }
 
 export interface UserBrief {
@@ -136,7 +139,8 @@ export interface ClientOrg {
   name: string;
   contactEmail: string | null;
   industry: string | null;
-  users: { id: string; name: string; email: string; isActive: boolean }[];
+  /** The client's own WorkNest account, when they have one. */
+  account: { id: string; name: string; email: string; phone: string | null; organisation: string | null } | null;
   projects: { id: string; name: string; status: ProjectStatus }[];
 }
 
@@ -148,6 +152,18 @@ export interface Company {
   officeLat: number | null;
   officeLng: number | null;
   officeRadiusM: number;
+  isListed: boolean;
+  tagline: string | null;
+  about: string | null;
+  industry: string | null;
+  specialities: string[];
+  offerings: string[];
+  website: string | null;
+  city: string | null;
+  country: string | null;
+  foundedYear: number | null;
+  sizeRange: "1-10" | "11-50" | "51-200" | "201-500" | "500+" | null;
+  contactEmail: string | null;
 }
 
 export type TeamColor = "indigo" | "emerald" | "sky" | "amber" | "rose" | "slate";
@@ -175,20 +191,6 @@ export interface TeamSummary {
   _count: { services: number; projects: number; requests: number };
 }
 
-/** What clients see about a team. */
-export interface TeamShowcase {
-  id: string;
-  name: string;
-  tagline: string | null;
-  description: string | null;
-  color: TeamColor;
-  skills: string[];
-  lead: { name: string; designation: string | null } | null;
-  members: { user: { name: string; designation: string | null } }[];
-  services: TeamService[];
-  projectsDelivered: number;
-}
-
 export type RequestStatus = "NEW" | "IN_REVIEW" | "ACCEPTED" | "DECLINED" | "CONVERTED";
 
 export interface ServiceRequest {
@@ -200,7 +202,8 @@ export interface ServiceRequest {
   status: RequestStatus;
   response: string | null;
   createdAt: string;
-  client: { id: string; name: string };
+  client: { id: string; name: string; account: { id: string; name: string; email: string; phone: string | null; organisation: string | null } | null };
+  company: { id: string; name: string; slug: string };
   team: { id: string; name: string; color: TeamColor; leadId: string | null };
   service: { id: string; title: string } | null;
   requestedBy: { id: string; name: string } | null;

@@ -102,7 +102,7 @@ export function Members() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge tone={roleTone[i.role]}>{i.role === "CLIENT" ? `Client · ${i.client?.name}` : (i.designation ?? roleLabel[i.role])}</Badge>
+                    <Badge tone={roleTone[i.role]}>{i.designation ?? roleLabel[i.role]}</Badge>
                     <Badge tone={expired ? "red" : "gray"}>{expired ? "Expired" : `Expires ${formatDate(i.expiresAt)}`}</Badge>
                     <Button size="sm" variant="secondary" onClick={() => regenerate(i)} title="Issue a fresh link">
                       <Link2 className="size-3.5" /> Resend
@@ -119,7 +119,7 @@ export function Members() {
       </Card>
 
       <Card>
-        <CardHeader title="All accounts" subtitle={`${accounts.data?.users.length ?? 0} people can sign in to this workspace, including client contacts`} />
+        <CardHeader title="All accounts" subtitle={`${accounts.data?.users.length ?? 0} people can sign in to this workspace`} />
         {accounts.loading ? (
           <div className="p-5">
             <PageLoader />
@@ -149,7 +149,7 @@ export function Members() {
                       </div>
                     </td>
                     <td className="px-5 py-3">
-                      <Badge tone={roleTone[u.role]}>{u.role === "CLIENT" ? `Client · ${u.client?.name}` : roleLabel[u.role]}</Badge>
+                      <Badge tone={roleTone[u.role]}>{roleLabel[u.role]}</Badge>
                     </td>
                     <td className="px-5 py-3 text-muted">{u.lastLoginAt ? timeAgo(u.lastLoginAt) : "Never"}</td>
                     <td className="px-5 py-3 text-muted">{formatDate(u.createdAt)}</td>

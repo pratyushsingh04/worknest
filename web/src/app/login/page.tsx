@@ -20,8 +20,8 @@ export default function LoginPage() {
     setLoading(true);
     setError(null);
     try {
-      await api.post("/auth/login", { email, password });
-      router.replace("/dashboard");
+      const { user } = await api.post<{ user: { role: string } }>("/auth/login", { email, password });
+      router.replace(user.role === "CLIENT" ? "/client" : "/dashboard");
     } catch (err) {
       setError(errorMessage(err));
       setLoading(false);
@@ -31,12 +31,16 @@ export default function LoginPage() {
   return (
     <AuthShell
       title="Welcome back"
-      subtitle="Sign in to your workspace. Team members and clients join through the invite link they were emailed."
+      subtitle="One sign-in for everyone. Companies land in their workspace, clients in their own portal."
       footer={
         <>
-          Starting a new company?{" "}
+          New here?{" "}
           <Link href="/register" className="font-medium text-brand hover:underline">
-            Create a workspace
+            Register a company
+          </Link>{" "}
+          or{" "}
+          <Link href="/register/client" className="font-medium text-brand hover:underline">
+            join as a client
           </Link>
         </>
       }

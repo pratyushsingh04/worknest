@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { AnimatePresence, motion, useScroll, useSpring } from "motion/react";
 import { ArrowRight, Bell, Building2, Check, Eye, FolderKanban, KeyRound, ShieldCheck, Sparkles, UserPlus, Users } from "lucide-react";
 import { clsx } from "clsx";
+import { AudienceFlip, type Audience } from "@/components/landing/audience-flip";
 import { BeamsNetwork } from "@/components/landing/beams";
 import { Capabilities } from "@/components/landing/capabilities";
 import { ClientLanding } from "@/components/landing/client-landing";
@@ -100,8 +101,6 @@ const roles = [
   },
 ];
 
-type Audience = "company" | "client";
-
 const audiences: { key: Audience; label: string; short: string; icon: typeof Eye }[] = [
   { key: "company", label: "For companies", short: "Companies", icon: Building2 },
   { key: "client", label: "For clients", short: "Clients", icon: Eye },
@@ -143,15 +142,31 @@ export default function Landing() {
   const progress = useSpring(scrollYProgress, { stiffness: 120, damping: 30 });
   // The same page, told for two audiences; switching flips it over.
   const [audience, setAudience] = useState<Audience>("company");
-  const switchTo = useCallback((next: Audience) => {
-    window.scrollTo({ top: 0 });
-    setAudience(next);
-  }, []);
+  // While set, a spinning card covers the page and the content swaps underneath it.
+  const [flip, setFlip] = useState<Audience | null>(null);
+  const flipping = useRef(false);
+  const switchTo = useCallback(
+    (next: Audience) => {
+      if (flipping.current || next === audience) return;
+      flipping.current = true;
+      setFlip(next);
+      setTimeout(() => {
+        window.scrollTo({ top: 0, behavior: "instant" });
+        setAudience(next);
+      }, 320);
+      setTimeout(() => {
+        setFlip(null);
+        flipping.current = false;
+      }, 1300);
+    },
+    [audience],
+  );
   const navLinks = audience === "company" ? companyNav : clientNav;
 
   return (
     <div className="bg-night text-white">
       <Intro onDone={onIntroDone} />
+      <AudienceFlip to={flip} />
       <motion.div className="fixed inset-x-0 top-0 z-[60] h-0.5 origin-left bg-indigo-400" style={{ scaleX: progress }} />
 
       {/* Navigation */}
@@ -195,8 +210,8 @@ export default function Landing() {
             <Link href="/login" className="hidden rounded-xl px-3 py-2 text-sm font-medium whitespace-nowrap text-white/70 transition-colors hover:text-white md:block">
               Sign in
             </Link>
-            <Link href="/register" className="hidden rounded-xl bg-white px-4 py-2 text-sm font-medium whitespace-nowrap text-night transition-transform hover:scale-[1.03] sm:block">
-              Get started
+            <Link href={audience === "client" ? "/register/client" : "/register"} className="hidden rounded-xl bg-white px-4 py-2 text-sm font-medium whitespace-nowrap text-night transition-transform hover:scale-[1.03] sm:block">
+              {audience === "client" ? "Join as a client" : "Register your company"}
             </Link>
           </div>
         </div>
@@ -206,12 +221,11 @@ export default function Landing() {
       <AnimatePresence mode="wait" initial={false}>
       <motion.main
         key={audience}
-        // Turns like a card around the middle of the screen.
+        // The old side swings away behind the spinning card, and the new one swings in as it clears.
         style={{ transformPerspective: 2200, transformOrigin: "50% 50vh" }}
-        initial={{ rotateY: audience === "client" ? 90 : -90, opacity: 0, scale: 0.92 }}
-        animate={{ rotateY: 0, opacity: 1, scale: 1 }}
-        exit={{ rotateY: audience === "client" ? 90 : -90, opacity: 0, scale: 0.92 }}
-        transition={{ duration: 0.55, ease: easeOut }}
+        initial={{ rotateY: audience === "client" ? -55 : 55, opacity: 0, scale: 0.78 }}
+        animate={{ rotateY: 0, opacity: 1, scale: 1, transition: { duration: 0.85, delay: 0.15, ease: easeOut } }}
+        exit={{ rotateY: audience === "client" ? -55 : 55, opacity: 0, scale: 0.78, transition: { duration: 0.28, ease: "easeIn" } }}
       >
       {audience === "client" ? (
         <ClientLanding onShowCompany={() => switchTo("company")} />
@@ -377,7 +391,7 @@ export default function Landing() {
         <SectionIntro
           eyebrow="For your clients"
           title="Just as valuable on the other side of the table."
-          lead="Clients don't have to take your word for it. They see who is working on their project, how far it has come and what your company has already delivered, all in their own portal."
+          lead="Every company you register here is shown to clients with its teams, people and record. They can hand you a project, then see who is working on it and how far it has come, in their own portal."
         />
         <div className="mt-16">
           <ForClients />
@@ -476,8 +490,8 @@ export default function Landing() {
             transition={{ duration: 1.4, ease: easeOut }}
           />
           {[
-            { icon: KeyRound, title: "Establish your workspace", text: "Create your company, set office locations and working hours, and define the policies your people work by." },
-            { icon: UserPlus, title: "Bring your organisation in", text: "Form teams, appoint leads, onboard clients and invite everyone by email, straight into the right place." },
+            { icon: KeyRound, title: "Register your company", text: "Create your workspace and describe what you do, what you are known for and where you are. That profile is what clients see." },
+            { icon: UserPlus, title: "Bring your organisation in", text: "Form teams, appoint leads and invite your people by email. Clients find you in the directory on their own." },
             { icon: Bell, title: "Operate in real time", text: "Check-ins, approvals, requests and delivery all flow live, with every person seeing exactly what matters to them." },
           ].map((s, i) => (
             <Reveal key={s.title} delay={0.2 + i * 0.2} className="relative text-center">
@@ -539,7 +553,7 @@ export default function Landing() {
           {[
             { h: "Platform", links: [["#pillars", "Five pillars"], ["#capabilities", "Capabilities"], ["#tour", "Guided tour"]] },
             { h: "Solutions", links: [["#roles", "Leadership"], ["#roles", "Team leads"], ["#roles", "Clients"]] },
-            { h: "Account", links: [["/register", "Create a workspace"], ["/login", "Sign in"], ["/forgot-password", "Reset password"]] },
+            { h: "Account", links: [["/register", "Register a company"], ["/register/client", "Join as a client"], ["/login", "Sign in"]] },
           ].map((col) => (
             <div key={col.h}>
               <p className="text-sm font-semibold text-white">{col.h}</p>

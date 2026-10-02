@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
+import { isProfileComplete, missingProfileFields, profileSchema } from '../lib/profile';
 import { currentUser, requireAuth, requireRole } from '../middleware/auth';
 
 export const companyRouter = Router();
@@ -17,7 +18,7 @@ function isValidTimezone(tz: string) {
 
 companyRouter.get('/', async (req, res) => {
   const company = await prisma.company.findUniqueOrThrow({ where: { id: currentUser(req).companyId } });
-  res.json({ company });
+  res.json({ company, missing: missingProfileFields(company) });
 });
 
 companyRouter.patch('/', requireRole('ADMIN'), async (req, res) => {
@@ -30,8 +31,13 @@ companyRouter.patch('/', requireRole('ADMIN'), async (req, res) => {
       officeLng: z.number().min(-180).max(180).nullable(),
       officeRadiusM: z.number().int().min(25).max(5000),
     })
+    .merge(profileSchema)
     .partial()
     .parse(req.body);
-  const company = await prisma.company.update({ where: { id: currentUser(req).companyId }, data: body });
-  res.json({ company });
+  const id = currentUser(req).companyId;
+  const saved = await prisma.company.update({ where: { id }, data: body });
+  // Listing follows the profile: complete means visible to clients, incomplete means hidden.
+  const complete = isProfileComplete(saved);
+  const company = saved.isListed === complete ? saved : await prisma.company.update({ where: { id }, data: { isListed: complete } });
+  res.json({ company, missing: missingProfileFields(company) });
 });

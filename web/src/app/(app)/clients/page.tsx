@@ -2,11 +2,10 @@
 
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
-import { Briefcase, KeyRound, Plus, Send } from "lucide-react";
-import { InviteModal } from "@/components/invite-modal";
+import { Briefcase, Plus } from "lucide-react";
 import { useAuth } from "@/components/auth-provider";
 import { ProjectStatusBadge } from "@/components/shared";
-import { Avatar, Button, Card, EmptyState, ErrorState, Field, FormError, Input, Modal, PageHeader, PageLoader, useToast } from "@/components/ui";
+import { Avatar, Button, Card, EmptyState, ErrorState, Field, FormError, Input, Modal, PageHeader, PageLoader } from "@/components/ui";
 import { api, errorMessage } from "@/lib/api";
 import { useApi } from "@/lib/use-api";
 import type { ClientOrg } from "@/lib/types";
@@ -16,8 +15,6 @@ export default function ClientsPage() {
   const isAdmin = hasRole("ADMIN");
   const { data, error, loading, reload } = useApi<{ clients: ClientOrg[] }>("/clients");
   const [adding, setAdding] = useState(false);
-  const [portalFor, setPortalFor] = useState<ClientOrg | null>(null);
-  const [inviteFor, setInviteFor] = useState<ClientOrg | null>(null);
 
   return (
     <>
@@ -73,29 +70,22 @@ export default function ClientsPage() {
               </div>
 
               <div className="mt-5 border-t border-line pt-4">
-                <div className="mb-2 flex items-center justify-between">
-                  <p className="text-xs font-medium tracking-wide text-muted uppercase">Portal access</p>
-                  {isAdmin && (
-                    <div className="flex gap-1">
-                      <Button size="sm" variant="ghost" onClick={() => setPortalFor(c)} title="Create a login with a password you choose">
-                        <KeyRound className="size-3.5" /> Set password
-                      </Button>
-                      <Button size="sm" variant="secondary" onClick={() => setInviteFor(c)}>
-                        <Send className="size-3.5" /> Invite
-                      </Button>
-                    </div>
-                  )}
-                </div>
-                {c.users.length === 0 ? (
-                  <p className="text-sm text-muted">No one from {c.name} can sign in yet.</p>
+                <p className="mb-2 text-xs font-medium tracking-wide text-muted uppercase">Contact</p>
+                {c.account ? (
+                  <div className="text-sm">
+                    <p className="font-medium">{c.account.name}</p>
+                    <a href={`mailto:${c.account.email}`} className="block text-muted hover:text-brand">
+                      {c.account.email}
+                    </a>
+                    {c.account.phone && (
+                      <a href={`tel:${c.account.phone}`} className="block text-muted hover:text-brand">
+                        {c.account.phone}
+                      </a>
+                    )}
+                    <p className="mt-2 text-xs text-emerald-700">Has a WorkNest client account and follows their projects live.</p>
+                  </div>
                 ) : (
-                  <ul className="space-y-1">
-                    {c.users.map((u) => (
-                      <li key={u.id} className="text-sm">
-                        {u.name} <span className="text-muted">· {u.email}</span>
-                      </li>
-                    ))}
-                  </ul>
+                  <p className="text-sm text-muted">{c.contactEmail ?? "No contact saved."} Added by hand, so they don&apos;t have a client account.</p>
                 )}
               </div>
             </Card>
@@ -105,8 +95,6 @@ export default function ClientsPage() {
       {isAdmin && (
         <>
           <AddClientModal open={adding} onClose={() => setAdding(false)} onSaved={reload} />
-          <PortalLoginModal client={portalFor} onClose={() => setPortalFor(null)} onSaved={reload} />
-          {inviteFor && <InviteModal defaultRole="CLIENT" defaultClientId={inviteFor.id} onClose={() => setInviteFor(null)} />}
         </>
       )}
     </>
@@ -153,57 +141,6 @@ function AddClientModal({ open, onClose, onSaved }: { open: boolean; onClose: ()
           </Button>
           <Button type="submit" loading={saving}>
             Add client
-          </Button>
-        </div>
-      </form>
-    </Modal>
-  );
-}
-
-function PortalLoginModal({ client, onClose, onSaved }: { client: ClientOrg | null; onClose: () => void; onSaved: () => void }) {
-  const toast = useToast();
-  const [form, setForm] = useState({ name: "", email: "", password: "" });
-  const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-
-  async function onSubmit(e: FormEvent) {
-    e.preventDefault();
-    if (!client) return;
-    setSaving(true);
-    setError(null);
-    try {
-      await api.post(`/clients/${client.id}/users`, form);
-      toast(`Portal login created for ${form.name}`);
-      setForm({ name: "", email: "", password: "" });
-      onSaved();
-      onClose();
-    } catch (err) {
-      setError(errorMessage(err));
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <Modal open={!!client} onClose={onClose} title={`Portal login for ${client?.name ?? ""}`}>
-      <form onSubmit={onSubmit} className="space-y-4">
-        <FormError message={error} />
-        <p className="text-sm text-muted">They will only see projects linked to {client?.name}: progress, milestones, updates and discussion.</p>
-        <Field label="Name">
-          <Input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-        </Field>
-        <Field label="Email">
-          <Input type="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-        </Field>
-        <Field label="Temporary password" hint="At least 8 characters">
-          <Input required minLength={8} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
-        </Field>
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="secondary" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit" loading={saving}>
-            Create login
           </Button>
         </div>
       </form>

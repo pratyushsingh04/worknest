@@ -75,11 +75,11 @@ export default function JoinPage() {
     );
   }
 
-  const place = invite.role === "CLIENT" ? `${invite.company.name}'s client portal for ${invite.client?.name}` : invite.company.name;
+  const place = invite.company.name;
 
   return (
     <AuthShell
-      title={`Join ${invite.role === "CLIENT" ? invite.client?.name : invite.company.name}`}
+      title={`Join ${invite.company.name}`}
       subtitle={
         <>
           {invite.invitedBy ? `${invite.invitedBy} invited you` : "You've been invited"} to {place}.

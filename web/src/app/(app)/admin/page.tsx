@@ -34,7 +34,7 @@ export default function AdminConsolePage() {
 
   return (
     <>
-      <PageHeader icon={ShieldCheck} eyebrow="Administrator" title="Admin console" description={`Everything happening at ${user.company.name}, in one place.`} />
+      <PageHeader icon={ShieldCheck} eyebrow="Administrator" title="Admin console" description={`Everything happening at ${user.company?.name}, in one place.`} />
 
       <div className="mb-6 flex gap-1 overflow-x-auto rounded-2xl border border-line bg-surface p-1 shadow-sm scroll-thin sm:inline-flex">
         {tabs.map((t) => (

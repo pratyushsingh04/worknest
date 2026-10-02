@@ -12,15 +12,15 @@ const faqs = [
   },
   {
     q: "Is each company's data kept separate?",
-    a: "Yes. Every workspace is fully isolated. Each request is checked against the signed-in person's company and role, so one organisation can never see another's people, projects or clients.",
+    a: "Yes. Attendance, leave, tasks, internal notes and client work stay inside your company, and every request is checked against the signed-in person's company and role. Only your public profile is shown to clients: what you do, your client-facing teams, your people and your delivery record.",
   },
   {
-    q: "How do team members and clients join?",
-    a: "Admins send an email invite that places the person directly into the right role, department, reporting line and projects. The link is single-use, expires after seven days and lets them choose their own password.",
+    q: "How do team members join, and how do clients find us?",
+    a: "Admins invite team members by email, straight into the right role, department and projects. Clients need no invitation: once your public profile is complete, your company appears in the client directory, and anyone with a client account can open it and ask your teams for work.",
   },
   {
     q: "What exactly do clients see?",
-    a: "Only what concerns them. Clients get a private portal with their own projects, live progress, milestones awaiting their approval, a shared discussion with your team, and a catalogue of the teams and services they can request.",
+    a: "Your public profile, your client-facing teams with their leads, members and services, your people by department and your delivery record. Once they give you a project they also see its live progress, its milestones for sign-off and a shared discussion. They never see attendance, leave, internal notes or other clients' work.",
   },
   {
     q: "Can team leads run their own teams?",

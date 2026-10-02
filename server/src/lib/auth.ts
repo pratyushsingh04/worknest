@@ -4,9 +4,9 @@ import { config } from '../config';
 
 export interface AuthUser {
   id: string;
+  // Empty for clients, who belong to no company.
   companyId: string;
   role: Role;
-  clientId: string | null;
 }
 
 export const AUTH_COOKIE = 'wn_token';
@@ -17,8 +17,8 @@ export function signToken(user: AuthUser, ttlSeconds = TOKEN_TTL_SECONDS): strin
 }
 
 export function verifyToken(token: string): AuthUser {
-  const { id, companyId, role, clientId } = jwt.verify(token, config.jwtSecret) as AuthUser;
-  return { id, companyId, role, clientId };
+  const { id, companyId, role } = jwt.verify(token, config.jwtSecret) as AuthUser;
+  return { id, companyId, role };
 }
 
 export const cookieOptions = {

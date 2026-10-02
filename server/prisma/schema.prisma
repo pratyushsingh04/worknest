@@ -73,6 +73,20 @@ model Company {
   officeRadiusM Int      @default(200)
   createdAt     DateTime @default(now())
 
+  // Public profile, shown to clients browsing the directory once it is complete.
+  tagline      String?
+  about        String?
+  industry     String?
+  specialities String[]
+  offerings    String[] // what the company can be hired for, in its own words
+  website      String?
+  city         String?
+  country      String?
+  foundedYear  Int?
+  sizeRange    String? // e.g. "11-50"
+  contactEmail String?
+  isListed     Boolean  @default(false)
+
   users      User[]
   clients    Client[]
   projects   Project[]
@@ -84,11 +98,12 @@ model Company {
   emails     EmailLog[]
   teams      Team[]
   requests   ServiceRequest[]
+  proposals  Proposal[]
 }
 
 model User {
   id              String    @id @default(cuid())
-  companyId       String
+  companyId       String? // null for clients: they belong to no company
   name            String
   email           String    @unique
   passwordHash    String
@@ -99,16 +114,19 @@ model User {
   isActive        Boolean   @default(true)
   joinedAt        DateTime  @default(now())
   managerId       String?
-  clientId        String? // set only for CLIENT users
+  organisation    String? // a client's own business, shown to companies
+  bio             String?
   lastLoginAt     DateTime?
   // Owner of the WorkNest platform itself (sees every company). Never set via the API.
   isPlatformAdmin Boolean   @default(false)
   createdAt       DateTime  @default(now())
 
-  company         Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company         Company?         @relation(fields: [companyId], references: [id], onDelete: Cascade)
   manager         User?            @relation("Reports", fields: [managerId], references: [id], onDelete: SetNull)
   reports         User[]           @relation("Reports")
-  client          Client?          @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientRecords   Client[]         @relation("ClientAccount")
+  needs           Need[]
+  proposals       Proposal[]
   managedProjects Project[]        @relation("ProjectManager")
   memberships     ProjectMember[]
   assignedTasks   Task[]           @relation("TaskAssignee")
@@ -127,22 +145,24 @@ model User {
   @@index([companyId])
 }
 
-// An external customer company whose projects we deliver.
+// A customer in one company's books. When the customer has a WorkNest client
+// account, accountId links to it and their projects show up in their own portal.
 model Client {
   id           String   @id @default(cuid())
   companyId    String
+  accountId    String?
   name         String
   contactEmail String?
   industry     String?
   createdAt    DateTime @default(now())
 
   company  Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  users    User[]
+  account  User?            @relation("ClientAccount", fields: [accountId], references: [id], onDelete: SetNull)
   projects Project[]
-  invites  Invite[]
   requests ServiceRequest[]
 
   @@index([companyId])
+  @@index([accountId])
 }
 
 model Project {
@@ -310,7 +330,6 @@ model Invite {
   department  String?
   managerId   String? // who they will report to
   projectIds  String[] // projects they join as soon as they accept
-  clientId    String? // for CLIENT invites: which client company they belong to
   tokenHash   String    @unique
   invitedById String?
   expiresAt   DateTime
@@ -318,7 +337,6 @@ model Invite {
   createdAt   DateTime  @default(now())
 
   company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  client    Client? @relation(fields: [clientId], references: [id], onDelete: Cascade)
   invitedBy User?   @relation("InviteSender", fields: [invitedById], references: [id], onDelete: SetNull)
 
   @@index([companyId, acceptedAt])
@@ -391,12 +409,13 @@ model Team {
   visibleToClients Boolean  @default(true)
   createdAt        DateTime @default(now())
 
-  company  Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  lead     User?            @relation("TeamLead", fields: [leadId], references: [id], onDelete: SetNull)
-  members  TeamMember[]
-  services TeamService[]
-  projects Project[]
-  requests ServiceRequest[]
+  company   Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  lead      User?            @relation("TeamLead", fields: [leadId], references: [id], onDelete: SetNull)
+  members   TeamMember[]
+  services  TeamService[]
+  projects  Project[]
+  requests  ServiceRequest[]
+  proposals Proposal[]
 
   @@unique([companyId, name])
 }
@@ -462,7 +481,60 @@ model ServiceRequest {
   service     TeamService? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
   requestedBy User?        @relation("Requester", fields: [requestedById], references: [id], onDelete: SetNull)
   project     Project?     @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  proposal    Proposal?
 
   @@index([companyId, status])
   @@index([teamId])
+}
+
+enum NeedStatus {
+  OPEN
+  CLOSED
+}
+
+// Something a client is looking for. Every listed company can see open needs and respond.
+model Need {
+  id        String     @id @default(cuid())
+  clientId  String
+  title     String
+  details   String
+  category  String?
+  budget    String?
+  deadline  DateTime?
+  status    NeedStatus @default(OPEN)
+  createdAt DateTime   @default(now())
+
+  client    User       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  proposals Proposal[]
+
+  @@index([status, createdAt])
+  @@index([clientId])
+}
+
+enum ProposalStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+// A company's answer to a client's need. Accepting it opens a request with the chosen team.
+model Proposal {
+  id        String         @id @default(cuid())
+  needId    String
+  companyId String
+  teamId    String
+  authorId  String?
+  message   String
+  status    ProposalStatus @default(PENDING)
+  requestId String?        @unique
+  createdAt DateTime       @default(now())
+
+  need    Need            @relation(fields: [needId], references: [id], onDelete: Cascade)
+  company Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  team    Team            @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  author  User?           @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  request ServiceRequest? @relation(fields: [requestId], references: [id], onDelete: SetNull)
+
+  @@unique([needId, companyId])
+  @@index([companyId])
 }

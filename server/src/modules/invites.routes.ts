@@ -27,15 +27,13 @@ const inviteSelect = {
   expiresAt: true,
   acceptedAt: true,
   createdAt: true,
-  client: { select: { id: true, name: true } },
   invitedBy: { select: { id: true, name: true } },
 } as const;
 
-type InviteRow = { id: string; email: string; name: string | null; role: string; designation: string | null; department: string | null; projectIds: string[]; managerId?: string | null; clientId?: string | null };
+type InviteRow = { id: string; email: string; name: string | null; role: string; designation: string | null; department: string | null; projectIds: string[]; managerId?: string | null };
 
 /** Human sentence describing where the invitee will land, for the email. */
 async function placementText(companyId: string, invite: InviteRow) {
-  if (invite.role === 'CLIENT') return 'You will be able to follow your projects, approve milestones and talk to the team.';
   const [projects, manager] = await Promise.all([
     prisma.project.findMany({ where: { id: { in: invite.projectIds }, companyId }, select: { name: true } }),
     invite.managerId ? prisma.user.findUnique({ where: { id: invite.managerId }, select: { name: true } }) : null,
@@ -48,14 +46,14 @@ async function placementText(companyId: string, invite: InviteRow) {
   return text;
 }
 
-async function emailInvite(companyId: string, inviterName: string, invite: InviteRow & { clientName?: string | null }, link: string) {
+async function emailInvite(companyId: string, inviterName: string, invite: InviteRow, link: string) {
   const company = await prisma.company.findUniqueOrThrow({ where: { id: companyId }, select: { name: true } });
   const mail = inviteEmail({
     inviterName,
-    companyName: invite.role === 'CLIENT' ? `${company.name} × ${invite.clientName}` : company.name,
+    companyName: company.name,
     placement: await placementText(companyId, invite),
     link,
-    isClient: invite.role === 'CLIENT',
+    isClient: false,
   });
   return sendMail({ ...mail, to: invite.email, kind: 'invite', companyId });
 }
@@ -78,24 +76,16 @@ invitesRouter.post('/', requireAuth, requireRole('ADMIN'), async (req, res) => {
     .object({
       email: z.string().trim().toLowerCase().email(),
       name: z.string().trim().min(2).optional(),
-      role: z.enum(['ADMIN', 'MANAGER', 'EMPLOYEE', 'CLIENT']),
+      role: z.enum(['ADMIN', 'MANAGER', 'EMPLOYEE']),
       designation: z.string().trim().max(80).optional(),
       department: z.string().trim().max(80).optional(),
       managerId: z.string().optional(),
       projectIds: z.array(z.string()).max(50).default([]),
-      clientId: z.string().optional(),
     })
-    .refine((b) => b.role !== 'CLIENT' || !!b.clientId, { message: 'Pick which client this person belongs to', path: ['clientId'] })
     .parse(req.body);
-  const isClient = body.role === 'CLIENT';
 
   if (await prisma.user.findUnique({ where: { email: body.email } })) throw conflict('Someone with this email already has an account');
-  let clientName: string | null = null;
-  if (isClient) {
-    const client = await prisma.client.findFirst({ where: { id: body.clientId, companyId: admin.companyId } });
-    if (!client) throw badRequest('Client not found');
-    clientName = client.name;
-  } else {
+  {
     if (body.managerId) {
       const manager = await prisma.user.findFirst({ where: { id: body.managerId, companyId: admin.companyId, role: { in: ['ADMIN', 'MANAGER'] }, isActive: true } });
       if (!manager) throw badRequest('Reporting manager must be an active admin or manager');
@@ -117,20 +107,19 @@ invitesRouter.post('/', requireAuth, requireRole('ADMIN'), async (req, res) => {
       email: body.email,
       name: body.name,
       role: body.role,
-      designation: isClient ? null : body.designation || null,
-      department: isClient ? null : body.department || null,
-      managerId: isClient ? null : body.managerId || null,
-      projectIds: isClient ? [] : body.projectIds,
-      clientId: isClient ? body.clientId : null,
+      designation: body.designation || null,
+      department: body.department || null,
+      managerId: body.managerId || null,
+      projectIds: body.projectIds,
       tokenHash,
       expiresAt,
     },
-    select: { ...inviteSelect, managerId: true, clientId: true },
+    select: { ...inviteSelect, managerId: true },
   });
 
   const inviter = await prisma.user.findUniqueOrThrow({ where: { id: admin.id }, select: { name: true } });
   const link = inviteLink(token);
-  const emailStatus = await emailInvite(admin.companyId, inviter.name, { ...invite, clientName }, link);
+  const emailStatus = await emailInvite(admin.companyId, inviter.name, invite, link);
   await logActivity({ companyId: admin.companyId, actorId: admin.id, message: `invited ${body.email} as ${body.role.toLowerCase()}` });
   res.status(201).json({ invite, link, emailStatus });
 });
@@ -140,14 +129,13 @@ invitesRouter.post('/:id/regenerate', requireAuth, requireRole('ADMIN'), async (
   const admin = currentUser(req);
   const existing = await prisma.invite.findFirst({
     where: { id: param(req, 'id'), companyId: admin.companyId, acceptedAt: null },
-    include: { client: { select: { name: true } } },
   });
   if (!existing) throw notFound('Invite not found or already used');
   const { token, tokenHash, expiresAt } = newToken(INVITE_TTL_MS);
   const invite = await prisma.invite.update({ where: { id: existing.id }, data: { tokenHash, expiresAt }, select: inviteSelect });
   const inviter = await prisma.user.findUniqueOrThrow({ where: { id: admin.id }, select: { name: true } });
   const link = inviteLink(token);
-  const emailStatus = await emailInvite(admin.companyId, inviter.name, { ...existing, clientName: existing.client?.name }, link);
+  const emailStatus = await emailInvite(admin.companyId, inviter.name, existing, link);
   res.json({ invite, link, emailStatus });
 });
 
@@ -163,7 +151,7 @@ invitesRouter.delete('/:id', requireAuth, requireRole('ADMIN'), async (req, res)
 async function findUsableInvite(token: string) {
   const invite = await prisma.invite.findUnique({
     where: { tokenHash: hashToken(token) },
-    include: { company: { select: { id: true, name: true } }, client: { select: { id: true, name: true } }, invitedBy: { select: { name: true } } },
+    include: { company: { select: { id: true, name: true } }, invitedBy: { select: { name: true } } },
   });
   if (!invite) throw notFound('This invite link is not valid');
   if (invite.acceptedAt) throw gone('This invite has already been used. Sign in instead.');
@@ -187,7 +175,6 @@ invitesRouter.get('/token/:token', async (req, res) => {
       manager: manager?.name ?? null,
       projects,
       company: invite.company,
-      client: invite.client,
       invitedBy: invite.invitedBy?.name ?? null,
       expiresAt: invite.expiresAt,
     },
@@ -219,7 +206,6 @@ invitesRouter.post('/token/:token/accept', async (req, res) => {
         role: invite.role,
         designation: invite.designation,
         department: invite.department,
-        clientId: invite.clientId,
         managerId: manager?.id ?? null,
         passwordHash: await bcrypt.hash(body.password, 10),
         memberships: { create: projects.map((p) => ({ projectId: p.id })) },
@@ -229,13 +215,9 @@ invitesRouter.post('/token/:token/accept', async (req, res) => {
   });
 
   await startSession(req, res, user);
-  await logActivity({
-    companyId: user.companyId,
-    actorId: user.id,
-    message: user.role === 'CLIENT' ? `joined the client portal for ${invite.client?.name}` : `joined the workspace${invite.department ? ` in ${invite.department}` : ''}`,
-  });
+  await logActivity({ companyId: invite.companyId, actorId: user.id, message: `joined the workspace${invite.department ? ` in ${invite.department}` : ''}` });
   for (const p of projects) {
-    await logActivity({ companyId: user.companyId, actorId: user.id, projectId: p.id, message: 'joined the project team' });
+    await logActivity({ companyId: invite.companyId, actorId: user.id, projectId: p.id, message: 'joined the project team' });
   }
   res.status(201).json({ user });
 });

@@ -56,14 +56,11 @@ async function main() {
   const arjun = await staff('Arjun Nair', 'arjun@worknest.dev', 'EMPLOYEE', 'Backend Developer', 'Engineering', priya.id);
   const meera = await staff('Meera Joshi', 'meera@worknest.dev', 'EMPLOYEE', 'UI/UX Designer', 'Design', kabir.id);
 
-  const freshcart = await prisma.client.create({ data: { companyId: company.id, name: 'FreshCart', contactEmail: 'ops@freshcart.in', industry: 'Grocery delivery' } });
-  const medplus = await prisma.client.create({ data: { companyId: company.id, name: 'CareWell Clinics', contactEmail: 'it@carewell.in', industry: 'Healthcare' } });
-  await prisma.user.create({
-    data: { companyId: company.id, clientId: freshcart.id, name: 'Vikram Rao', email: 'client@worknest.dev', role: 'CLIENT', passwordHash },
-  });
-  await prisma.user.create({
-    data: { companyId: company.id, clientId: medplus.id, name: 'Dr. Anjali Gupta', email: 'carewell@worknest.dev', role: 'CLIENT', passwordHash },
-  });
+  // Clients have their own accounts and belong to no company.
+  const vikram = await prisma.user.create({ data: { name: 'Vikram Rao', email: 'client@worknest.dev', role: 'CLIENT', organisation: 'FreshCart', passwordHash } });
+  const anjali = await prisma.user.create({ data: { name: 'Dr. Anjali Gupta', email: 'carewell@worknest.dev', role: 'CLIENT', organisation: 'CareWell Clinics', passwordHash } });
+  const freshcart = await prisma.client.create({ data: { companyId: company.id, accountId: vikram.id, name: 'FreshCart', contactEmail: 'ops@freshcart.in', industry: 'Grocery delivery' } });
+  const medplus = await prisma.client.create({ data: { companyId: company.id, accountId: anjali.id, name: 'CareWell Clinics', contactEmail: 'it@carewell.in', industry: 'Healthcare' } });
 
   type SeedTask = [title: string, status: TaskStatus, priority: Priority, assigneeId: string, milestone: number];
   async function project(opts: {

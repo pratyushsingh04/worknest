@@ -14,7 +14,7 @@ import type { ClientOrg, ProjectStatus, ProjectSummary, Staff, TeamSummary } fro
 const filters: (ProjectStatus | "ALL")[] = ["ALL", "ACTIVE", "PLANNING", "ON_HOLD", "COMPLETED"];
 
 export default function ProjectsPage() {
-  const { user, hasRole } = useAuth();
+  const { hasRole } = useAuth();
   const { data, error, loading, reload } = useApi<{ projects: ProjectSummary[] }>("/projects");
   const [filter, setFilter] = useState<(typeof filters)[number]>("ALL");
   const [creating, setCreating] = useState(false);
@@ -25,8 +25,8 @@ export default function ProjectsPage() {
   return (
     <>
       <PageHeader icon={FolderKanban}
-        title={user.role === "CLIENT" ? "Your projects" : "Projects"}
-        description={user.role === "CLIENT" ? "Track progress on everything we're delivering for you." : "Everything your teams are delivering."}
+        title="Projects"
+        description="Everything your teams are delivering."
         action={
           canCreate && (
             <Button onClick={() => setCreating(true)}>
