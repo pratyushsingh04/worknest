@@ -9,7 +9,11 @@ export class ApiError extends Error {
 
 // A sleeping server answers through the proxy with a gateway error until it has woken up.
 const WAKING = new Set([502, 504]);
-const RETRY_DELAYS = [2000, 4000, 6000, 8000, 10000, 10000, 10000, 10000];
+// A cold start on the free host can take over a minute, so keep trying for about three.
+const RETRY_DELAYS = [2000, 3000, 5000, ...Array<number>(17).fill(10000)];
+/** Fired on window while requests are waiting for the server to wake (detail: true) and when it answers (false). */
+export const WAKING_EVENT = "wn:waking";
+const announce = (waking: boolean) => typeof window !== "undefined" && window.dispatchEvent(new CustomEvent(WAKING_EVENT, { detail: waking }));
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   for (let attempt = 0; ; attempt++) {
@@ -20,9 +24,11 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
       body: body !== undefined ? JSON.stringify(body) : undefined,
     }).catch(() => null);
     if ((!res || WAKING.has(res.status)) && attempt < RETRY_DELAYS.length) {
+      announce(true);
       await new Promise((r) => setTimeout(r, RETRY_DELAYS[attempt]));
       continue;
     }
+    if (attempt > 0) announce(false);
     if (!res) throw new ApiError(0, "Can't reach the server. Check your connection and try again.");
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new ApiError(res.status, data.error ?? (WAKING.has(res.status) ? "The server is still starting up. Please try again in a moment." : `Request failed (${res.status})`));

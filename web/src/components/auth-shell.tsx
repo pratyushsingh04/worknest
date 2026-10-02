@@ -6,7 +6,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { CalendarCheck, CheckCircle2, MapPin, ThumbsUp } from "lucide-react";
 import { Logo } from "./logo";
 import { easeOut } from "./motion";
-import { warmUp } from "@/lib/api";
+import { WAKING_EVENT, warmUp } from "@/lib/api";
 
 const feed = [
   { icon: MapPin, color: "text-emerald-300", title: "Check-in verified", sub: "Inside the office radius · on time" },
@@ -101,6 +101,28 @@ function ProductPreview() {
   );
 }
 
+/** Explains the wait while a sleeping server wakes up. */
+function WakingNotice() {
+  const [waking, setWaking] = useState(false);
+  useEffect(() => {
+    const on = (e: Event) => setWaking((e as CustomEvent<boolean>).detail);
+    window.addEventListener(WAKING_EVENT, on);
+    return () => window.removeEventListener(WAKING_EVENT, on);
+  }, []);
+  return (
+    <AnimatePresence>
+      {waking && (
+        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+          <p className="mb-4 flex items-center gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <span className="size-3.5 shrink-0 animate-spin rounded-full border-2 border-amber-300 border-t-amber-700" />
+            Waking the server. This can take up to a minute, and you don&apos;t need to press anything again.
+          </p>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
 /** Split-screen frame shared by sign in, sign up, invites and password pages. */
 export function AuthShell({ title, subtitle, children, footer }: { title: string; subtitle?: ReactNode; children: ReactNode; footer?: ReactNode }) {
   return (
@@ -118,7 +140,10 @@ export function AuthShell({ title, subtitle, children, footer }: { title: string
         >
           <h1 className="text-3xl font-semibold tracking-tight">{title}</h1>
           {subtitle && <div className="mt-2 text-sm text-muted">{subtitle}</div>}
-          <div className="mt-8">{children}</div>
+          <div className="mt-8">
+            <WakingNotice />
+            {children}
+          </div>
           {footer && <div className="mt-8 text-center text-sm text-muted">{footer}</div>}
         </motion.div>
       </div>
