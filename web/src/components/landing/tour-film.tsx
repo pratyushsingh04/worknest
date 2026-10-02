@@ -325,7 +325,7 @@ function SignOff({ t }: SceneProps) {
   );
 }
 
-function Outro({ onClose }: { onClose: () => void }) {
+function Outro({ onClose, bare }: { onClose: () => void; bare?: boolean }) {
   return (
     <div className="flex h-full flex-col items-center justify-center text-center">
       <motion.div initial={{ rotateY: -360, scale: 0.3, opacity: 0 }} animate={{ rotateY: 0, scale: 1, opacity: 1 }} transition={{ duration: 1.3, ease: easeOut }} style={{ transformPerspective: 800 }}>
@@ -333,7 +333,7 @@ function Outro({ onClose }: { onClose: () => void }) {
       </motion.div>
       <Line delay={0.5}>Your company, in sync. Your clients, in the loop.</Line>
       <Sub>Register your company and it appears in the directory. Or join as a client and start with the companies already here.</Sub>
-      <motion.div className="mt-9 flex flex-wrap justify-center gap-3" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.3, duration: 0.6 }}>
+      <motion.div className={clsx("mt-9 flex flex-wrap justify-center gap-3", bare && "pointer-events-none")} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.3, duration: 0.6 }}>
         <Link href="/register" onClick={onClose} className="group inline-flex items-center gap-2 rounded-xl bg-white px-7 py-4 text-sm font-semibold text-night">
           Register your company <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
         </Link>
@@ -354,7 +354,11 @@ const scenes = [
   { label: "Your turn", glow: "rgb(79 70 229 / 0.4)" },
 ];
 
-function Film({ onClose }: { onClose: () => void }) {
+/**
+ * The film itself. `bare` drops the player controls and leaves only the picture,
+ * which is how the video file in /public is recorded (see scripts/record-tour.mjs).
+ */
+export function Film({ onClose, bare = false }: { onClose: () => void; bare?: boolean }) {
   // Which scene is showing and how far into it we are, kept together so the clock can roll one into the next.
   const [{ index, t }, setClock] = useState({ index: 0, t: 0 });
   const [playing, setPlaying] = useState(true);
@@ -409,8 +413,17 @@ function Film({ onClose }: { onClose: () => void }) {
         <div className="absolute inset-0 bg-grid" />
       </div>
 
+      {bare && (
+        <div className="relative flex items-center justify-between px-10 pt-7">
+          <span className="flex items-center gap-2.5 text-lg font-semibold tracking-tight">
+            <LogoMark /> WorkNest
+          </span>
+          <span className="text-sm text-white/45">{scenes[index].label}</span>
+        </div>
+      )}
+
       {/* Chapters */}
-      <div className="relative flex items-center gap-4 px-4 pt-4 sm:px-8">
+      <div className={clsx("relative flex items-center gap-4 px-4 pt-4 sm:px-8", bare && "hidden")}>
         <div className="flex flex-1 gap-1.5">
           {scenes.map((s, i) => (
             <button key={s.label} onClick={() => go(i)} className="group flex-1 py-2" aria-label={`Go to ${s.label}`}>
@@ -442,13 +455,15 @@ function Film({ onClose }: { onClose: () => void }) {
             {index === 2 && <Delivery t={t} />}
             {index === 3 && <Discover t={t} />}
             {index === 4 && <SignOff t={t} />}
-            {index === 5 && <Outro onClose={onClose} />}
+            {index === 5 && <Outro onClose={onClose} bare={bare} />}
           </motion.div>
         </AnimatePresence>
       </div>
 
+      {bare && <p className="relative px-10 pb-6 text-xs text-white/35">An illustration of how WorkNest works. The companies, people and places shown are examples.</p>}
+
       {/* Controls */}
-      <div className="relative flex items-center justify-between gap-4 px-4 pb-5 sm:px-8">
+      <div className={clsx("relative flex items-center justify-between gap-4 px-4 pb-5 sm:px-8", bare && "hidden")}>
         <p className="hidden max-w-sm text-xs text-white/35 sm:block">An illustration of how WorkNest works. The companies, people and places shown are examples.</p>
         <div className="mx-auto flex items-center gap-2 sm:mx-0">
           <button onClick={() => go(index - 1)} disabled={index === 0} className="rounded-full p-2.5 text-white/70 transition-colors hover:bg-white/10 disabled:opacity-30" aria-label="Previous scene">
@@ -469,8 +484,77 @@ function Film({ onClose }: { onClose: () => void }) {
   );
 }
 
-/** Full-screen tour film. Mounts only while open, so it always starts from the first scene. */
+/** Plays the recorded tour video full screen. Mounts only while open, so it always starts from the beginning. */
 export function TourFilm({ open, onClose }: { open: boolean; onClose: () => void }) {
   if (typeof document === "undefined") return null;
-  return createPortal(<AnimatePresence>{open && <Film onClose={onClose} />}</AnimatePresence>, document.body);
+  return createPortal(<AnimatePresence>{open && <VideoPlayer onClose={onClose} />}</AnimatePresence>, document.body);
+}
+
+function VideoPlayer({ onClose }: { onClose: () => void }) {
+  const [ended, setEnded] = useState(false);
+  const video = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    const overflow = document.documentElement.style.overflow;
+    document.documentElement.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.documentElement.style.overflow = overflow;
+    };
+  }, [onClose]);
+
+  return (
+    <motion.div role="dialog" aria-modal="true" aria-label="WorkNest tour video" className="fixed inset-0 z-[90] flex items-center justify-center bg-black/90 p-3 backdrop-blur-md sm:p-8" onMouseDown={onClose} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
+      <motion.div
+        className="border-glow relative w-full max-w-[1400px] overflow-hidden rounded-2xl bg-night shadow-[0_60px_160px_-30px_rgb(79_70_229_/_0.6)] sm:rounded-3xl"
+        onMouseDown={(e) => e.stopPropagation()}
+        style={{ transformPerspective: 1600 }}
+        initial={{ opacity: 0, scale: 0.7, rotateX: 28, y: 80 }}
+        animate={{ opacity: 1, scale: 1, rotateX: 0, y: 0 }}
+        exit={{ opacity: 0, scale: 0.85, rotateX: 12, y: 40 }}
+        transition={{ type: "spring", stiffness: 180, damping: 22 }}
+      >
+        <video
+          ref={video}
+          src="/tour.webm"
+          className="block aspect-video w-full bg-night"
+          autoPlay
+          playsInline
+          controls
+          onEnded={() => setEnded(true)}
+          onPlay={() => setEnded(false)}
+          aria-label="A day on WorkNest: check-in in Bengaluru, delivery in Berlin, a client in Toronto finding a company and signing off the work"
+        />
+        <button onClick={onClose} className="absolute top-3 right-3 rounded-full bg-black/50 p-2 text-white/80 backdrop-blur transition-colors hover:bg-black/70 hover:text-white" aria-label="Close video">
+          <X className="size-5" />
+        </button>
+        <AnimatePresence>
+          {ended && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 flex flex-col items-center justify-center gap-5 bg-night/85 text-white backdrop-blur-sm">
+              <p className="text-2xl font-semibold tracking-tight sm:text-4xl">Ready when you are.</p>
+              <div className="flex flex-wrap justify-center gap-3">
+                <Link href="/register" onClick={onClose} className="group inline-flex items-center gap-2 rounded-xl bg-white px-6 py-3.5 text-sm font-semibold text-night">
+                  Register your company <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
+                </Link>
+                <Link href="/register/client" onClick={onClose} className="inline-flex items-center gap-2 rounded-xl bg-emerald-400 px-6 py-3.5 text-sm font-semibold text-night">
+                  Join as a client
+                </Link>
+                <button
+                  onClick={() => {
+                    setEnded(false);
+                    video.current?.play();
+                  }}
+                  className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-6 py-3.5 text-sm font-semibold"
+                >
+                  <RotateCcw className="size-4" /> Watch again
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
+    </motion.div>
+  );
 }
