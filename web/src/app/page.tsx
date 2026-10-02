@@ -5,7 +5,7 @@ import { useCallback, useRef, useState } from "react";
 import { AnimatePresence, motion, useScroll, useSpring } from "motion/react";
 import { ArrowRight, Bell, Building2, Check, Eye, FolderKanban, KeyRound, Play, ShieldCheck, Sparkles, UserPlus, Users } from "lucide-react";
 import { clsx } from "clsx";
-import { AudienceFlip, type Audience } from "@/components/landing/audience-flip";
+import { AudienceFlip, AudienceSpinner, type Audience } from "@/components/landing/audience-flip";
 import { BeamsNetwork } from "@/components/landing/beams";
 import { Capabilities } from "@/components/landing/capabilities";
 import { ClientLanding } from "@/components/landing/client-landing";
@@ -257,6 +257,10 @@ export default function Landing() {
                 <Sparkles className="size-3.5 text-indigo-300" />
                 The operating system for service companies
               </span>
+            </motion.div>
+
+            <motion.div className="mt-6 flex justify-center xl:justify-start" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.05 }}>
+              <AudienceSpinner current="company" onSwitch={() => switchTo("client")} />
             </motion.div>
 
             <h1 className="mt-7 text-5xl leading-[1.04] font-semibold tracking-tight sm:text-6xl xl:text-[4.1rem]">

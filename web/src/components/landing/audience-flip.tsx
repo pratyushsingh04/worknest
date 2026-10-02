@@ -27,6 +27,43 @@ function Face({ audience, back }: { audience: Audience; back?: boolean }) {
 }
 
 /**
+ * A two-sided badge that never stops turning: companies on one face, clients on the other.
+ * A click flips the whole page to the other audience.
+ */
+export function AudienceSpinner({ current, onSwitch }: { current: Audience; onSwitch: () => void }) {
+  const other = current === "company" ? "client" : "company";
+  return (
+    <button onClick={onSwitch} className="group inline-flex items-center gap-4 text-left" aria-label={`Switch to the page ${faces[other].label.toLowerCase()}`}>
+      <span className="block" style={{ perspective: 700 }}>
+        {/* A plain CSS spin: it never stops. Clients start half a turn in, so their face leads. */}
+        <span className="preserve-3d relative block h-14 w-48 animate-spin-y transition-[scale] duration-300 group-hover:scale-105" style={current === "client" ? { animationDelay: "-3.5s" } : undefined}>
+          {(["company", "client"] as Audience[]).map((a) => {
+            const f = faces[a];
+            return (
+              <span
+                key={a}
+                className={`absolute inset-0 flex items-center gap-2.5 rounded-2xl bg-gradient-to-br ${f.tint} px-4 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgb(255_255_255_/_0.35),0_14px_34px_-12px_rgb(0_0_0_/_0.8)] [backface-visibility:hidden]`}
+                style={a === "client" ? { transform: "rotateY(180deg)" } : undefined}
+              >
+                <span className="flex size-8 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/30">
+                  <f.icon className="size-4" />
+                </span>
+                {f.label}
+              </span>
+            );
+          })}
+        </span>
+      </span>
+      <span className="text-xs leading-snug text-white/50 transition-colors group-hover:text-white">
+        One platform, two sides.
+        <br />
+        <span className="font-medium text-white/80 group-hover:text-white">See it {faces[other].label.toLowerCase()} →</span>
+      </span>
+    </button>
+  );
+}
+
+/**
  * Plays while the landing page swaps audience: a card spins one and a half turns
  * in 3D and lands on the new side, with a shockwave behind it.
  */
