@@ -10,6 +10,7 @@ import { Magnetic } from "@/components/landing/magnetic";
 import { SectionIntro } from "@/components/landing/reveal-heading";
 import { RotatingWords } from "@/components/landing/rotating-words";
 import { ScrollRevealText } from "@/components/landing/scroll-reveal-text";
+import { AudienceSpinner } from "@/components/landing/audience-flip";
 import { ClientJourney } from "@/components/landing/client-journey";
 import { Reveal, SpotlightCard, TiltCard, easeOut } from "@/components/motion";
 import { Icon3D } from "@/components/three-d";
@@ -158,6 +159,10 @@ export function ClientLanding({ onShowCompany }: { onShowCompany: () => void }) 
               <Sparkles className="size-3.5 text-emerald-300" />
               For anyone looking to hire a company
             </motion.span>
+
+            <motion.div className="mt-6 flex justify-center xl:justify-start" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.4 }}>
+              <AudienceSpinner current="client" onSwitch={onShowCompany} />
+            </motion.div>
 
             <h1 className="mt-7 text-5xl leading-[1.04] font-semibold tracking-tight sm:text-6xl xl:text-[4.1rem]">
               {["Hire", "with", "proof.", "Know", "your"].map((w, i) => (
