@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useRef, useState } from "react";
 import { AnimatePresence, motion, useScroll, useSpring } from "motion/react";
-import { ArrowRight, Bell, Building2, Check, Eye, FolderKanban, KeyRound, ShieldCheck, Sparkles, UserPlus, Users } from "lucide-react";
+import { ArrowRight, Bell, Building2, Check, Eye, FolderKanban, KeyRound, Play, ShieldCheck, Sparkles, UserPlus, Users } from "lucide-react";
 import { clsx } from "clsx";
 import { AudienceFlip, type Audience } from "@/components/landing/audience-flip";
 import { BeamsNetwork } from "@/components/landing/beams";
@@ -18,6 +18,7 @@ import { Magnetic } from "@/components/landing/magnetic";
 import { OrbitRing } from "@/components/landing/orbit-ring";
 import { Pillars } from "@/components/landing/pillars";
 import { SectionIntro } from "@/components/landing/reveal-heading";
+import { TourFilm } from "@/components/landing/tour-film";
 import { RotatingWords } from "@/components/landing/rotating-words";
 import { ScrollRevealText } from "@/components/landing/scroll-reveal-text";
 import { ScrollStory } from "@/components/landing/scroll-story";
@@ -162,11 +163,14 @@ export default function Landing() {
     [audience],
   );
   const navLinks = audience === "company" ? companyNav : clientNav;
+  const [tourOpen, setTourOpen] = useState(false);
+  const closeTour = useCallback(() => setTourOpen(false), []);
 
   return (
     <div className="bg-night text-white">
       <Intro onDone={onIntroDone} />
       <AudienceFlip to={flip} />
+      <TourFilm open={tourOpen} onClose={closeTour} />
       <motion.div className="fixed inset-x-0 top-0 z-[60] h-0.5 origin-left bg-indigo-400" style={{ scaleX: progress }} />
 
       {/* Navigation */}
@@ -280,9 +284,13 @@ export default function Landing() {
                 </Link>
               </Magnetic>
               <Magnetic>
-                <a href="#tour" className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-6 py-3.5 text-sm font-semibold backdrop-blur transition-colors hover:bg-white/10">
+                <button onClick={() => setTourOpen(true)} className="group inline-flex items-center gap-2.5 rounded-xl border border-white/15 bg-white/5 px-6 py-3.5 text-sm font-semibold backdrop-blur transition-colors hover:bg-white/10">
+                  <span className="relative flex size-6 items-center justify-center rounded-full bg-white text-night">
+                    <span className="absolute inset-0 animate-ping rounded-full bg-white/40" />
+                    <Play className="relative size-3 translate-x-px fill-current" />
+                  </span>
                   Take the tour
-                </a>
+                </button>
               </Magnetic>
             </motion.div>
 
@@ -368,7 +376,11 @@ export default function Landing() {
       {/* Guided tour */}
       <section id="tour" className="relative pt-10">
         <div className={container}>
-          <SectionIntro eyebrow="A guided tour" title="See how a working day flows through WorkNest." lead="Scroll to move from the first check-in of the morning to a client signing off on a milestone." />
+          <SectionIntro eyebrow="A guided tour" title="See how a working day flows through WorkNest." lead="Scroll to move from the first check-in of the morning to a client signing off on a milestone, or sit back and watch it as a short film.">
+            <button onClick={() => setTourOpen(true)} className="mt-7 inline-flex items-center gap-2.5 rounded-xl bg-white px-6 py-3.5 text-sm font-semibold text-night transition-transform hover:scale-[1.03]">
+              <Play className="size-4 fill-current" /> Watch the film
+            </button>
+          </SectionIntro>
         </div>
         <ScrollStory />
       </section>
