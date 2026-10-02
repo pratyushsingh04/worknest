@@ -4,21 +4,16 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowRight, Check, ChevronLeft, ChevronRight, MapPin, Pause, Play, RotateCcw, Search, ThumbsUp, X } from "lucide-react";
+import { ArrowRight, Check, ChevronLeft, ChevronRight, Pause, Play, RotateCcw, Search, ThumbsUp, X } from "lucide-react";
 import { clsx } from "clsx";
 import { GeoMap } from "@/components/landing/geo-map";
 import { Globe } from "@/components/landing/globe";
 import { LogoMark } from "@/components/logo";
+import { DroneShot, Doorstep, Journey, Line, Place, Portal, Sub, type SceneProps } from "@/components/landing/tour-scenes";
 import { easeOut } from "@/components/motion";
 
 // A short film about a working day on WorkNest, drawn live in the browser.
 // Each scene is a pure function of `t` (milliseconds since it began), so it can be paused and scrubbed.
-
-const SCENE_MS = 7500;
-
-interface SceneProps {
-  t: number;
-}
 
 const cities = [
   { name: "Bengaluru", x: 68, y: 58 },
@@ -30,36 +25,6 @@ const cities = [
   { name: "Tokyo", x: 88, y: 34 },
   { name: "Sydney", x: 86, y: 78 },
 ];
-
-function Place({ children }: { children: string }) {
-  return (
-    <motion.p className="flex items-center gap-2 text-sm font-medium tracking-[0.2em] text-emerald-300 uppercase" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.6, ease: easeOut }}>
-      <MapPin className="size-4" /> {children}
-    </motion.p>
-  );
-}
-
-function Line({ children, delay = 0.15 }: { children: string; delay?: number }) {
-  return (
-    <h2 className="mt-4 text-3xl leading-[1.1] font-semibold tracking-tight sm:text-5xl">
-      {children.split(" ").map((w, i) => (
-        <span key={i} className="inline-block overflow-hidden pb-1.5 align-bottom">
-          <motion.span className="inline-block" initial={{ y: "110%" }} animate={{ y: 0 }} transition={{ duration: 0.7, delay: delay + i * 0.045, ease: easeOut }}>
-            {w}&nbsp;
-          </motion.span>
-        </span>
-      ))}
-    </h2>
-  );
-}
-
-function Sub({ children }: { children: string }) {
-  return (
-    <motion.p className="mt-4 max-w-lg text-base text-white/60 sm:text-lg" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7, duration: 0.7, ease: easeOut }}>
-      {children}
-    </motion.p>
-  );
-}
 
 /** Two-column scene: words on the left, the product on the right, swinging in. */
 function Stage({ copy, children }: { copy: React.ReactNode; children: React.ReactNode }) {
@@ -345,13 +310,22 @@ function Outro({ onClose, bare }: { onClose: () => void; bare?: boolean }) {
   );
 }
 
-const scenes = [
-  { label: "The world", glow: "rgb(79 70 229 / 0.35)" },
-  { label: "Morning", glow: "rgb(16 185 129 / 0.28)" },
-  { label: "Delivery", glow: "rgb(99 102 241 / 0.32)" },
-  { label: "A client arrives", glow: "rgb(16 185 129 / 0.3)" },
-  { label: "Sign-off", glow: "rgb(245 158 11 / 0.22)" },
-  { label: "Your turn", glow: "rgb(79 70 229 / 0.4)" },
+type SceneKey = "world" | "city" | "factory" | "port" | "morning" | "delivery" | "discover" | "journey" | "doorstep" | "signoff" | "portal" | "outro";
+
+// The running order. `ms` is how long each scene holds; the last one stays up.
+export const scenes: { key: SceneKey; label: string; ms: number; glow: string }[] = [
+  { key: "world", label: "The world", ms: 8000, glow: "rgb(79 70 229 / 0.35)" },
+  { key: "city", label: "A city", ms: 11000, glow: "rgb(124 58 94 / 0.3)" },
+  { key: "factory", label: "A factory", ms: 12000, glow: "rgb(53 96 122 / 0.35)" },
+  { key: "port", label: "A port", ms: 12000, glow: "rgb(45 106 138 / 0.35)" },
+  { key: "morning", label: "Morning", ms: 8000, glow: "rgb(16 185 129 / 0.28)" },
+  { key: "delivery", label: "Delivery", ms: 8500, glow: "rgb(99 102 241 / 0.32)" },
+  { key: "discover", label: "A client arrives", ms: 8500, glow: "rgb(16 185 129 / 0.3)" },
+  { key: "journey", label: "On its way", ms: 16000, glow: "rgb(245 158 11 / 0.2)" },
+  { key: "doorstep", label: "Delivered", ms: 13000, glow: "rgb(194 86 107 / 0.3)" },
+  { key: "signoff", label: "Sign-off", ms: 8000, glow: "rgb(245 158 11 / 0.22)" },
+  { key: "portal", label: "The portal", ms: 12000, glow: "rgb(16 185 129 / 0.28)" },
+  { key: "outro", label: "Your turn", ms: 9000, glow: "rgb(79 70 229 / 0.4)" },
 ];
 
 /**
@@ -377,9 +351,10 @@ export function Film({ onClose, bare = false }: { onClose: () => void; bare?: bo
       lastTick.current = now;
       // Move on when a scene has played out. The last one holds on its call to action.
       setClock((c) => {
-        if (c.index === scenes.length - 1 && c.t >= SCENE_MS) return c;
+        const ms = scenes[c.index].ms;
+        if (c.index === scenes.length - 1 && c.t >= ms) return c;
         const next = c.t + Math.min(delta, 250);
-        return next >= SCENE_MS && c.index < scenes.length - 1 ? { index: c.index + 1, t: 0 } : { index: c.index, t: next };
+        return next >= ms && c.index < scenes.length - 1 ? { index: c.index + 1, t: 0 } : { index: c.index, t: next };
       });
     }, 50);
     return () => clearInterval(id);
@@ -405,6 +380,7 @@ export function Film({ onClose, bare = false }: { onClose: () => void; bare?: bo
   }, [index, go, onClose]);
 
   const ended = index === last;
+  const scene = scenes[index];
 
   return (
     <motion.div role="dialog" aria-modal="true" aria-label="WorkNest tour" className="fixed inset-0 z-[90] flex flex-col bg-night text-white" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.35 }}>
@@ -428,9 +404,9 @@ export function Film({ onClose, bare = false }: { onClose: () => void; bare?: bo
           {scenes.map((s, i) => (
             <button key={s.label} onClick={() => go(i)} className="group flex-1 py-2" aria-label={`Go to ${s.label}`}>
               <span className="block h-1 overflow-hidden rounded-full bg-white/15">
-                <span className="block h-full rounded-full bg-white" style={{ width: `${i < index ? 100 : i === index ? (ended ? 100 : Math.min(100, (t / SCENE_MS) * 100)) : 0}%` }} />
+                <span className="block h-full rounded-full bg-white" style={{ width: `${i < index ? 100 : i === index ? (ended ? 100 : Math.min(100, (t / scenes[index].ms) * 100)) : 0}%` }} />
               </span>
-              <span className={clsx("mt-1.5 hidden text-left text-[11px] transition-colors sm:block", i === index ? "text-white" : "text-white/35 group-hover:text-white/70")}>{s.label}</span>
+              <span className={clsx("mt-1.5 hidden truncate text-left text-[11px] transition-colors lg:block", i === index ? "text-white" : "text-white/35 group-hover:text-white/70")}>{s.label}</span>
             </button>
           ))}
         </div>
@@ -450,12 +426,16 @@ export function Film({ onClose, bare = false }: { onClose: () => void; bare?: bo
             exit={{ opacity: 0, rotateY: -35, scale: 0.86, filter: "blur(10px)" }}
             transition={{ duration: 0.55, ease: easeOut }}
           >
-            {index === 0 && <World t={t} />}
-            {index === 1 && <Morning t={t} />}
-            {index === 2 && <Delivery t={t} />}
-            {index === 3 && <Discover t={t} />}
-            {index === 4 && <SignOff t={t} />}
-            {index === 5 && <Outro onClose={onClose} bare={bare} />}
+            {scene.key === "world" && <World t={t} />}
+            {(scene.key === "city" || scene.key === "factory" || scene.key === "port") && <DroneShot t={t} variant={scene.key} ms={scene.ms} />}
+            {scene.key === "morning" && <Morning t={t} />}
+            {scene.key === "delivery" && <Delivery t={t} />}
+            {scene.key === "discover" && <Discover t={t} />}
+            {scene.key === "journey" && <Journey t={t} ms={scene.ms} />}
+            {scene.key === "doorstep" && <Doorstep t={t} />}
+            {scene.key === "signoff" && <SignOff t={t} />}
+            {scene.key === "portal" && <Portal t={t} />}
+            {scene.key === "outro" && <Outro onClose={onClose} bare={bare} />}
           </motion.div>
         </AnimatePresence>
       </div>

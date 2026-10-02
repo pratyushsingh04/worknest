@@ -18,7 +18,8 @@ const { chromium } = require('playwright-core');
 
 const URL = process.env.TOUR_URL ?? 'http://localhost:3000/tour-film';
 const SIZE = { width: 1600, height: 900 };
-const FILM_MS = 5 * 7500 + 6500; // five timed scenes, then the closing card held for a while
+// The sum of every scene's `ms` in tour-film.tsx, plus a moment on the closing card.
+const FILM_MS = Number(process.env.TOUR_MS ?? 126000) + 1500;
 const out = resolve(dirname(fileURLToPath(import.meta.url)), '../public/tour.webm');
 const tmp = join(process.cwd(), '.tour-recording');
 
@@ -56,7 +57,7 @@ const cache = process.env.PLAYWRIGHT_BROWSERS_PATH ?? (process.platform === 'win
 const dir = existsSync(cache) ? readdirSync(cache).find((d) => d.startsWith('ffmpeg')) : undefined;
 const ffmpeg = dir && join(cache, dir, readdirSync(join(cache, dir)).find((n) => n.startsWith('ffmpeg')) ?? '');
 if (ffmpeg && existsSync(ffmpeg)) {
-  execFileSync(ffmpeg, ['-y', '-ss', leadIn.toFixed(2), '-i', raw, '-c:v', 'libvpx', '-b:v', '2500k', '-crf', '8', '-an', out], { stdio: 'ignore' });
+  execFileSync(ffmpeg, ['-y', '-ss', leadIn.toFixed(2), '-i', raw, '-c:v', 'libvpx', '-b:v', '1300k', '-crf', '14', '-an', out], { stdio: 'ignore' });
 } else {
   console.warn('ffmpeg not found; keeping the untrimmed recording.');
   renameSync(raw, out);
