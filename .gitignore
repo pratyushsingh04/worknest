@@ -4,3 +4,6 @@ node_modules
 .pgdata
 dist
 .next
+
+# Local test sign-ins written by scripts/e2e-market.mts --keep
+.e2e-accounts.json

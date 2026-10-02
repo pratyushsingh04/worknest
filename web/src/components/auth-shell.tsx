@@ -124,7 +124,8 @@ function WakingNotice() {
 }
 
 /** Split-screen frame shared by sign in, sign up, invites and password pages. */
-export function AuthShell({ title, subtitle, children, footer }: { title: string; subtitle?: ReactNode; children: ReactNode; footer?: ReactNode }) {
+export function AuthShell({ title, subtitle, children, footer, audience = "company" }: { title: string; subtitle?: ReactNode; children: ReactNode; footer?: ReactNode; audience?: "company" | "client" }) {
+  const client = audience === "client";
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
       <div className="relative flex flex-col px-4 py-8 sm:px-10">
@@ -151,16 +152,16 @@ export function AuthShell({ title, subtitle, children, footer }: { title: string
       <div className="relative hidden overflow-hidden bg-night lg:flex lg:flex-col lg:justify-between lg:p-12">
         <div className="pointer-events-none absolute inset-0">
           <div className="absolute inset-0 bg-grid" />
-          <div className="absolute -top-40 left-1/2 h-96 w-[80%] -translate-x-1/2 bg-[radial-gradient(ellipse_at_center,rgb(79_70_229_/_0.28),transparent_70%)]" />
+          <div className={`absolute -top-40 left-1/2 h-96 w-[80%] -translate-x-1/2 ${client ? "bg-[radial-gradient(ellipse_at_center,rgb(16_185_129_/_0.25),transparent_70%)]" : "bg-[radial-gradient(ellipse_at_center,rgb(79_70_229_/_0.28),transparent_70%)]"}`} />
         </div>
         <div className="relative">
-          <p className="text-sm font-medium text-indigo-300">The operating system for service companies</p>
-          <h2 className="mt-3 max-w-md text-4xl leading-tight font-semibold tracking-tight text-white">Your company, perfectly in sync.</h2>
+          <p className={`text-sm font-medium ${client ? "text-emerald-300" : "text-indigo-300"}`}>{client ? "For clients" : "The operating system for service companies"}</p>
+          <h2 className="mt-3 max-w-md text-4xl leading-tight font-semibold tracking-tight text-white">{client ? "Find the right company. Watch the work happen." : "Your company, perfectly in sync."}</h2>
         </div>
         <div className="relative py-10">
           <ProductPreview />
         </div>
-        <p className="relative text-xs text-white/40">Workforce · Teams · Delivery · Client experience · Governance</p>
+        <p className="relative text-xs text-white/40">{client ? "Company directory · Teams and people · Live progress · Milestone sign-off" : "Workforce · Teams · Delivery · Client experience · Governance"}</p>
       </div>
     </div>
   );

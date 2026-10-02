@@ -4,13 +4,12 @@ import { prisma } from './prisma';
 
 /** Prisma filter for the projects a user is allowed to see. */
 export function projectScope(user: AuthUser): Prisma.ProjectWhereInput {
+  // Clients see the projects delivered to them, whichever company runs them.
+  if (user.role === 'CLIENT') return { client: { accountId: user.id } };
   const base = { companyId: user.companyId };
   switch (user.role) {
     case 'ADMIN':
       return base;
-    case 'CLIENT':
-      // A client user with no client record must never match anything.
-      return { ...base, clientId: user.clientId ?? '__none__' };
     case 'MANAGER':
       return { ...base, OR: [{ managerId: user.id }, { members: { some: { userId: user.id } } }, { team: { leadId: user.id } }] };
     case 'EMPLOYEE':

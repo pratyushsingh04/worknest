@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { motion } from "motion/react";
-import { ArrowUpRight, Clock, Eye, EyeOff, Layers, RotateCw, Users } from "lucide-react";
+import { ArrowUpRight, Eye, EyeOff, RotateCw, Users } from "lucide-react";
 import { clsx } from "clsx";
 import { Avatar } from "@/components/ui";
 import { formatINR, teamColor } from "@/lib/team-colors";
@@ -128,47 +128,6 @@ export function TeamFlipCard({ team, href }: { team: CardTeam; href: string }) {
         <RotateCw className="size-3.5" />
       </button>
     </div>
-  );
-}
-
-/** A service tile with a gentle 3D lift, used on the client-facing team page. */
-export function ServiceCard({ service, color, action }: { service: TeamService; color: TeamColor; action?: React.ReactNode }) {
-  const c = teamColor[color];
-  return (
-    <motion.div whileHover={{ y: -4, rotateX: 4 }} transition={{ type: "spring", stiffness: 300, damping: 20 }} style={{ transformPerspective: 900 }} className="flex h-full flex-col rounded-2xl border border-line bg-surface p-5 shadow-[0_1px_2px_rgba(17,17,24,0.04)] hover:shadow-[0_20px_40px_-26px_rgba(17,17,24,0.35)]">
-      <div className="flex items-start justify-between gap-3">
-        <span className={clsx("flex size-10 items-center justify-center rounded-xl ring-1", c.soft, c.text, c.ring)}>
-          <Layers className="size-5" />
-        </span>
-        {service.startingPrice != null && (
-          <div className="text-right">
-            <p className="text-[11px] text-muted">Starting at</p>
-            <p className="font-semibold">{formatINR(service.startingPrice)}</p>
-          </div>
-        )}
-      </div>
-      <h3 className="mt-4 font-semibold">{service.title}</h3>
-      <p className="mt-1 text-sm text-muted">{service.description}</p>
-      {service.deliverables.length > 0 && (
-        <ul className="mt-4 space-y-1.5 text-sm">
-          {service.deliverables.map((d) => (
-            <li key={d} className="flex items-start gap-2">
-              <span className={clsx("mt-1.5 size-1.5 shrink-0 rounded-full", c.dot)} /> {d}
-            </li>
-          ))}
-        </ul>
-      )}
-      <div className="mt-auto flex items-center justify-between gap-3 pt-5">
-        {service.turnaround ? (
-          <span className="flex items-center gap-1.5 text-xs text-muted">
-            <Clock className="size-3.5" /> {service.turnaround}
-          </span>
-        ) : (
-          <span />
-        )}
-        {action}
-      </div>
-    </motion.div>
   );
 }
 

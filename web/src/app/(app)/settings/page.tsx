@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { LocateFixed, Settings2 } from "lucide-react";
+import { Eye, LocateFixed, Settings2 } from "lucide-react";
 import { useAuth } from "@/components/auth-provider";
-import { Button, Card, CardHeader, Field, FormError, Input, PageHeader, useToast } from "@/components/ui";
+import { ProfileWhatFields, ProfileWhereFields, missingForListing, toProfileForm, toProfilePayload, type ProfileForm } from "@/components/company-profile";
+import { Badge, Button, Card, CardHeader, Field, FormError, Input, PageHeader, useToast } from "@/components/ui";
 import { api, errorMessage } from "@/lib/api";
 import { roleLabel } from "@/lib/format";
 import { useApi } from "@/lib/use-api";
@@ -31,8 +32,8 @@ export default function SettingsPage() {
               <dd className="font-medium">{roleLabel[user.role]}</dd>
             </div>
             <div>
-              <dt className="text-xs text-muted">{user.role === "CLIENT" ? "Company" : "Workspace"}</dt>
-              <dd className="font-medium">{user.role === "CLIENT" ? user.client?.name : user.company.name}</dd>
+              <dt className="text-xs text-muted">Workspace</dt>
+              <dd className="font-medium">{user.company?.name}</dd>
             </div>
           </dl>
         </Card>
@@ -87,7 +88,68 @@ function ChangePassword() {
 
 function CompanySettings() {
   const { data } = useApi<{ company: Company }>("/company");
-  return data ? <CompanyForm company={data.company} /> : null;
+  return data ? (
+    <>
+      <PublicProfile company={data.company} />
+      <CompanyForm company={data.company} />
+    </>
+  ) : null;
+}
+
+/** What clients read about the company. It is listed in the directory only while complete. */
+function PublicProfile({ company }: { company: Company }) {
+  const toast = useToast();
+  const [form, setForm] = useState<ProfileForm>(() => toProfileForm(company));
+  const [listed, setListed] = useState(company.isListed);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const set = (patch: Partial<ProfileForm>) => setForm((f) => ({ ...f, ...patch }));
+  const missing = missingForListing(form);
+
+  async function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await api.patch<{ company: Company }>("/company", toProfilePayload(form));
+      setListed(res.company.isListed);
+      toast(res.company.isListed ? "Profile saved. Clients can see your company." : "Profile saved. Finish it to appear to clients.");
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Card>
+      <div id="profile" className="scroll-mt-6">
+        <CardHeader
+          title="Public profile"
+          subtitle="This is what clients see in the directory, along with your client-facing teams and their services."
+          action={
+            <Badge tone={listed ? "green" : "amber"} dot>
+              {listed ? "Visible to clients" : "Hidden from clients"}
+            </Badge>
+          }
+        />
+      </div>
+      <form onSubmit={onSubmit} noValidate className="space-y-4 p-5">
+        {missing.length > 0 && (
+          <p className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <Eye className="mt-0.5 size-4 shrink-0" />
+            <span>To appear in the client directory, add {missing.join(", ")}.</span>
+          </p>
+        )}
+        <FormError message={error} />
+        <ProfileWhatFields form={form} set={set} />
+        <ProfileWhereFields form={form} set={set} />
+        <Button type="submit" loading={saving}>
+          Save profile
+        </Button>
+      </form>
+    </Card>
+  );
 }
 
 function CompanyForm({ company: c }: { company: Company }) {

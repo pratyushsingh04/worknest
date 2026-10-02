@@ -9,6 +9,7 @@ import { blockedFor, hit, reset as resetLimit } from '../lib/rate-limit';
 import { hashToken, issuePasswordReset } from '../lib/tokens';
 import { passwordResetEmail, sendMail } from '../lib/mailer';
 import { logActivity } from '../lib/activity';
+import { isProfileComplete, profileSchema } from '../lib/profile';
 import { currentUser, param, requireAuth } from '../middleware/auth';
 
 export const authRouter = Router();
@@ -35,10 +36,11 @@ export const publicUserSelect = {
   role: true,
   designation: true,
   department: true,
-  clientId: true,
+  phone: true,
+  organisation: true,
+  bio: true,
   isPlatformAdmin: true,
-  company: { select: { id: true, name: true, slug: true } },
-  client: { select: { id: true, name: true } },
+  company: { select: { id: true, name: true, slug: true, isListed: true } },
 } as const;
 
 export function requestMeta(req: Request) {
@@ -46,8 +48,8 @@ export function requestMeta(req: Request) {
 }
 
 /** Signs the user in on this response and records the successful sign-in. */
-export async function startSession(req: Request, res: import('express').Response, user: { id: string; companyId: string; role: import('@prisma/client').Role; clientId: string | null; email: string }) {
-  res.cookie(AUTH_COOKIE, signToken({ id: user.id, companyId: user.companyId, role: user.role, clientId: user.clientId }), cookieOptions);
+export async function startSession(req: Request, res: import('express').Response, user: { id: string; companyId: string | null; role: import('@prisma/client').Role; email: string }) {
+  res.cookie(AUTH_COOKIE, signToken({ id: user.id, companyId: user.companyId ?? '', role: user.role }), cookieOptions);
   await prisma.$transaction([
     prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } }),
     prisma.loginEvent.create({ data: { userId: user.id, companyId: user.companyId, email: user.email, success: true, ...requestMeta(req) } }),
@@ -58,8 +60,9 @@ authRouter.post('/register-company', async (req, res) => {
   const retry = hit(`register:${req.ip}`, 10, 60 * 60 * 1000);
   if (retry) throw tooManyRequests(retry);
   const body = z
-    .object({ companyName: z.string().trim().min(2), name: z.string().trim().min(2), email, password: passwordSchema })
+    .object({ companyName: z.string().trim().min(2), name: z.string().trim().min(2), email, password: passwordSchema, designation: z.string().trim().max(80).optional(), profile: profileSchema.partial().optional() })
     .parse(req.body);
+  const profile = { tagline: null, about: null, industry: null, specialities: [], offerings: [], city: null, country: null, ...body.profile };
 
   if (await prisma.user.findUnique({ where: { email: body.email } })) {
     throw conflict('An account with this email already exists');
@@ -71,14 +74,60 @@ authRouter.post('/register-company', async (req, res) => {
       email: body.email,
       passwordHash: await bcrypt.hash(body.password, 10),
       role: 'ADMIN',
-      designation: 'Founder',
-      company: { create: { name: body.companyName, slug: slugify(body.companyName) } },
+      designation: body.designation || 'Founder',
+      // A complete profile goes straight into the client directory.
+      company: { create: { name: body.companyName, slug: slugify(body.companyName), ...profile, contactEmail: profile.contactEmail ?? body.email, isListed: isProfileComplete(profile) } },
     },
     select: { ...publicUserSelect, companyId: true },
   });
   await startSession(req, res, user);
-  await logActivity({ companyId: user.companyId, actorId: user.id, message: `created the ${body.companyName} workspace` });
+  await logActivity({ companyId: user.companyId!, actorId: user.id, message: `created the ${body.companyName} workspace` });
   res.status(201).json({ user });
+});
+
+// Clients sign up on their own and belong to no company.
+authRouter.post('/register-client', async (req, res) => {
+  const retry = hit(`register:${req.ip}`, 10, 60 * 60 * 1000);
+  if (retry) throw tooManyRequests(retry);
+  const body = z
+    .object({
+      name: z.string().trim().min(2).max(80),
+      email,
+      password: passwordSchema,
+      organisation: z.string().trim().max(120).optional(),
+      phone: z.string().trim().max(30).optional(),
+    })
+    .parse(req.body);
+  if (await prisma.user.findUnique({ where: { email: body.email } })) throw conflict('An account with this email already exists');
+
+  const user = await prisma.user.create({
+    data: {
+      name: body.name,
+      email: body.email,
+      passwordHash: await bcrypt.hash(body.password, 10),
+      role: 'CLIENT',
+      organisation: body.organisation || null,
+      phone: body.phone || null,
+    },
+    select: { ...publicUserSelect, companyId: true },
+  });
+  await startSession(req, res, user);
+  res.status(201).json({ user });
+});
+
+// Anyone can update their own name and contact details.
+authRouter.patch('/me', requireAuth, async (req, res) => {
+  const body = z
+    .object({
+      name: z.string().trim().min(2).max(80),
+      phone: z.string().trim().max(30).nullable(),
+      organisation: z.string().trim().max(120).nullable(),
+      bio: z.string().trim().max(600).nullable(),
+    })
+    .partial()
+    .parse(req.body);
+  const user = await prisma.user.update({ where: { id: currentUser(req).id }, data: body, select: publicUserSelect });
+  res.json({ user });
 });
 
 authRouter.post('/login', async (req, res) => {

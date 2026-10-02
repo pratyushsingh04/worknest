@@ -24,9 +24,9 @@ export async function requireAuth(req: Request, _res: Response, next: NextFuncti
   }
   // The token only proves identity. Role and status come from the database, so a
   // deactivated account or a changed role takes effect immediately, not when the token expires.
-  const user = await prisma.user.findUnique({ where: { id: claims.id }, select: { id: true, companyId: true, role: true, clientId: true, isActive: true } });
+  const user = await prisma.user.findUnique({ where: { id: claims.id }, select: { id: true, companyId: true, role: true, isActive: true } });
   if (!user || !user.isActive) return next(unauthorized('This account is no longer active'));
-  req.user = { id: user.id, companyId: user.companyId, role: user.role, clientId: user.clientId };
+  req.user = { id: user.id, companyId: user.companyId ?? '', role: user.role };
   next();
 }
 
@@ -36,6 +36,9 @@ export function requireRole(...roles: Role[]) {
     next();
   };
 }
+
+/** Everyone who works inside a company. Clients are kept out of workspace routes with this. */
+export const requireStaff = requireRole('ADMIN', 'MANAGER', 'EMPLOYEE');
 
 /** Only call after requireAuth. */
 export function currentUser(req: Request): AuthUser {

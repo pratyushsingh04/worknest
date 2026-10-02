@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, type FormEvent, type KeyboardEvent } from "react";
-import { useRouter } from "next/navigation";
 import { Check, X } from "lucide-react";
 import { clsx } from "clsx";
 import { Avatar, Button, Field, FormError, Input, Modal, Select, Textarea, useToast } from "@/components/ui";
@@ -281,78 +280,6 @@ export function ServiceFormModal({ teamId, service, onClose, onSaved }: { teamId
           </Button>
           <Button type="submit" loading={saving}>
             {service ? "Save" : "Add service"}
-          </Button>
-        </div>
-      </form>
-    </Modal>
-  );
-}
-
-/** Client asks a team for work, optionally about one of its services. */
-export function RequestModal({ team, service, onClose }: { team: { id: string; name: string; services: TeamService[] }; service?: TeamService | null; onClose: () => void }) {
-  const router = useRouter();
-  const toast = useToast();
-  const [form, setForm] = useState({ serviceId: service?.id ?? "", title: "", details: "", budget: "", deadline: "" });
-  const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-
-  async function onSubmit(e: FormEvent) {
-    e.preventDefault();
-    setSaving(true);
-    setError(null);
-    try {
-      await api.post("/requests", {
-        teamId: team.id,
-        serviceId: form.serviceId || null,
-        title: form.title,
-        details: form.details,
-        budget: form.budget || null,
-        deadline: form.deadline || null,
-      });
-      toast(`Request sent to ${team.name}`);
-      router.push("/requests");
-    } catch (err) {
-      setError(errorMessage(err));
-      setSaving(false);
-    }
-  }
-
-  return (
-    <Modal open onClose={onClose} title={`Work with ${team.name}`} wide>
-      <form onSubmit={onSubmit} className="space-y-4">
-        <FormError message={error} />
-        {team.services.length > 0 && (
-          <Field label="Service">
-            <Select value={form.serviceId} onChange={(e) => setForm({ ...form, serviceId: e.target.value })}>
-              <option value="">Something else</option>
-              {team.services.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.title}
-                </option>
-              ))}
-            </Select>
-          </Field>
-        )}
-        <Field label="What do you need?">
-          <Input required minLength={3} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Admin panel for our rider app" />
-        </Field>
-        <Field label="Details" hint="Goals, must-haves, links, anything that helps the team plan">
-          <Textarea required minLength={10} className="min-h-32" value={form.details} onChange={(e) => setForm({ ...form, details: e.target.value })} />
-        </Field>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Budget (optional)">
-            <Input value={form.budget} onChange={(e) => setForm({ ...form, budget: e.target.value })} placeholder="₹2-3 lakh" />
-          </Field>
-          <Field label="Needed by (optional)">
-            <Input type="date" value={form.deadline} onChange={(e) => setForm({ ...form, deadline: e.target.value })} />
-          </Field>
-        </div>
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="secondary" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit" loading={saving}>
-            Send request
           </Button>
         </div>
       </form>

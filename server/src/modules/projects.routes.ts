@@ -108,7 +108,8 @@ projectsRouter.get('/:id', async (req, res) => {
     where: { id },
     include: {
       client: { select: { id: true, name: true } },
-      team: { select: { id: true, name: true, color: true, leadId: true } },
+      company: { select: { id: true, name: true, slug: true } },
+      team: { select: { id: true, name: true, color: true, leadId: true, tagline: true, lead: userBrief } },
       manager: userBrief,
       members: { include: { user: userBrief } },
       milestones: { orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] },
@@ -272,7 +273,7 @@ projectsRouter.post('/:id/milestones/:milestoneId/review', requireRole('CLIENT')
     data: { status: body.decision, clientNote: body.note ?? null },
   });
   await logActivity({
-    companyId: user.companyId,
+    companyId: project.companyId,
     actorId: user.id,
     projectId: project.id,
     message:

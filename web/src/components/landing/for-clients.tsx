@@ -9,7 +9,7 @@ export const clientBenefits = [
   { icon: UsersRound, title: "Know exactly who is on it", text: "The team behind the work, its lead and every member, visible from day one." },
   { icon: Award, title: "Judge by track record", text: "How many projects the company and each team have delivered, shown as real numbers from real work." },
   { icon: ThumbsUp, title: "Stay in control", text: "Approve each milestone, or send it back with a note. Nothing is marked done without sign-off." },
-  { icon: Send, title: "Ask for more in one step", text: "Browse every team's services and raise a request that becomes a staffed project." },
+  { icon: Send, title: "Ask for work in one step", text: "Browse any company's teams and services and raise a request that becomes a staffed project." },
   { icon: MessagesSquare, title: "One conversation", text: "A shared thread with the people doing the work, instead of scattered emails and calls." },
 ];
 

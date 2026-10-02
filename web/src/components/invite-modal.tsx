@@ -137,7 +137,7 @@ export function InviteModal({ onClose, onCreated, defaultRole = "EMPLOYEE", defa
           <div>
             <p className="mb-2 text-sm font-medium">Access</p>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {(["EMPLOYEE", "MANAGER", "ADMIN", "CLIENT"] as Role[]).map((r) => (
+              {(["EMPLOYEE", "MANAGER", "ADMIN"] as const).map((r) => (
                 <button
                   key={r}
                   type="button"
@@ -147,8 +147,8 @@ export function InviteModal({ onClose, onCreated, defaultRole = "EMPLOYEE", defa
                     form.role === r ? "border-brand bg-brand-soft/60 ring-4 ring-brand/10" : "border-line hover:border-brand/40",
                   )}
                 >
-                  <span className="block font-medium">{{ EMPLOYEE: "Employee", MANAGER: "Manager", ADMIN: "Admin", CLIENT: "Client" }[r]}</span>
-                  <span className="block text-xs text-muted">{{ EMPLOYEE: "Tasks & HR", MANAGER: "Runs projects", ADMIN: "Everything", CLIENT: "Portal only" }[r]}</span>
+                  <span className="block font-medium">{{ EMPLOYEE: "Employee", MANAGER: "Manager", ADMIN: "Admin" }[r]}</span>
+                  <span className="block text-xs text-muted">{{ EMPLOYEE: "Tasks & HR", MANAGER: "Runs projects", ADMIN: "Everything" }[r]}</span>
                 </button>
               ))}
             </div>

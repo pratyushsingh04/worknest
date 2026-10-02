@@ -15,7 +15,7 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+export function AuthProvider({ children, fallback }: { children: ReactNode; fallback?: ReactNode }) {
   const router = useRouter();
   const toast = useToast();
   const [user, setUser] = useState<Me | null>(null);
@@ -49,6 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const hasRole = useCallback((...roles: Role[]) => !!user && roles.includes(user.role), [user]);
 
   if (!user) {
+    if (fallback) return <>{fallback}</>;
     return (
       <div className="flex min-h-screen items-center justify-center">
         <PageLoader />

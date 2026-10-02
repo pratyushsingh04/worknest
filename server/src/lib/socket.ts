@@ -23,9 +23,9 @@ export function initSocket(server: HttpServer) {
     if (!token) return next(new Error('unauthorized'));
     try {
       const claims = verifyToken(token);
-      const user = await prisma.user.findUnique({ where: { id: claims.id }, select: { id: true, companyId: true, role: true, clientId: true, isActive: true } });
+      const user = await prisma.user.findUnique({ where: { id: claims.id }, select: { id: true, companyId: true, role: true, isActive: true } });
       if (!user?.isActive) return next(new Error('unauthorized'));
-      socket.data.user = { id: user.id, companyId: user.companyId, role: user.role, clientId: user.clientId };
+      socket.data.user = { id: user.id, companyId: user.companyId ?? '', role: user.role };
       next();
     } catch {
       next(new Error('unauthorized'));

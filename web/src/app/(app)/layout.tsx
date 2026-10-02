@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { clsx } from "clsx";
 import { AnimatePresence, motion } from "motion/react";
-import { Briefcase, CalendarClock, CalendarDays, CheckSquare, FolderKanban, Globe2, Inbox, LayoutDashboard, LogOut, Menu, Settings, ShieldCheck, Users, UsersRound, X } from "lucide-react";
+import { Briefcase, CalendarClock, CalendarDays, CheckSquare, FolderKanban, Globe2, Inbox, LayoutDashboard, LogOut, Megaphone, Menu, Settings, ShieldCheck, Users, UsersRound, X } from "lucide-react";
 import { AuthProvider, useAuth } from "@/components/auth-provider";
 import { Logo } from "@/components/logo";
 import { Avatar } from "@/components/ui";
@@ -13,7 +13,7 @@ import { roleLabel } from "@/lib/format";
 import type { Role } from "@/lib/types";
 
 const STAFF: Role[] = ["ADMIN", "MANAGER", "EMPLOYEE"];
-const EVERYONE: Role[] = [...STAFF, "CLIENT"];
+const EVERYONE = STAFF;
 const LEADS: Role[] = ["ADMIN", "MANAGER"];
 
 const sections = [
@@ -24,7 +24,8 @@ const sections = [
       { href: "/projects", label: "Projects", icon: FolderKanban, roles: EVERYONE },
       { href: "/my-tasks", label: "My tasks", icon: CheckSquare, roles: STAFF },
       { href: "/teams", label: "Teams", icon: UsersRound, roles: EVERYONE },
-      { href: "/requests", label: "Requests", icon: Inbox, roles: ["ADMIN", "MANAGER", "CLIENT"] as Role[] },
+      { href: "/requests", label: "Requests", icon: Inbox, roles: LEADS },
+      { href: "/leads", label: "Client needs", icon: Megaphone, roles: LEADS },
     ],
   },
   {
@@ -63,8 +64,8 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       </div>
 
       <div className="relative mx-3 mb-3 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5">
-        <p className="truncate text-sm font-medium">{user.role === "CLIENT" ? user.client?.name : user.company.name}</p>
-        <p className="text-xs text-white/50">{user.role === "CLIENT" ? `Client portal · ${user.company.name}` : `${roleLabel[user.role]} workspace`}</p>
+        <p className="truncate text-sm font-medium">{user.company?.name}</p>
+        <p className="text-xs text-white/50">{roleLabel[user.role]} workspace</p>
       </div>
 
       <nav className="relative flex-1 space-y-5 overflow-y-auto px-3 py-2 scroll-thin">
@@ -124,6 +125,14 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 
 function Shell({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
+  const { user } = useAuth();
+  const router = useRouter();
+  // Clients have their own interface; the workspace is for people inside a company.
+  const isClient = user.role === "CLIENT";
+  useEffect(() => {
+    if (isClient) router.replace("/client");
+  }, [isClient, router]);
+  if (isClient) return null;
 
   return (
     <div className="min-h-screen">

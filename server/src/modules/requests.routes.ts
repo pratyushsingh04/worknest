@@ -6,6 +6,7 @@ import { config } from '../config';
 import { badRequest, forbidden, notFound, tooManyRequests } from '../lib/errors';
 import { hit } from '../lib/rate-limit';
 import { logActivity } from '../lib/activity';
+import { ensureClientRecord } from '../lib/client-record';
 import { requestEmail, sendMail } from '../lib/mailer';
 import { emit, rooms } from '../lib/socket';
 import type { AuthUser } from '../lib/auth';
@@ -16,16 +17,17 @@ export const requestsRouter = Router();
 requestsRouter.use(requireAuth);
 
 const requestInclude = {
-  client: { select: { id: true, name: true } },
+  client: { select: { id: true, name: true, account: { select: { id: true, name: true, email: true, phone: true, organisation: true } } } },
+  company: { select: { id: true, name: true, slug: true } },
   team: { select: { id: true, name: true, color: true, leadId: true } },
   service: { select: { id: true, title: true } },
   requestedBy: { select: { id: true, name: true } },
   project: { select: { id: true, name: true } },
 } as const;
 
-/** Clients see their company's requests; admins see all; team leads see their teams'. */
+/** Clients see what they asked for, anywhere; admins see their company's; team leads see their teams'. */
 function scope(user: AuthUser): Prisma.ServiceRequestWhereInput {
-  if (user.role === 'CLIENT') return { companyId: user.companyId, clientId: user.clientId ?? '__none__' };
+  if (user.role === 'CLIENT') return { client: { accountId: user.id } };
   if (user.role === 'ADMIN') return { companyId: user.companyId };
   return { companyId: user.companyId, team: { leadId: user.id } };
 }
@@ -42,6 +44,7 @@ requestsRouter.get('/', async (req, res) => {
   res.json({ requests });
 });
 
+// A client asks one of a listed company's teams for work.
 requestsRouter.post('/', requireRole('CLIENT'), async (req, res) => {
   const user = currentUser(req);
   const retry = hit(`request:${user.id}`, 20, 60 * 60 * 1000);
@@ -57,14 +60,14 @@ requestsRouter.post('/', requireRole('CLIENT'), async (req, res) => {
     })
     .parse(req.body);
 
-  const team = await prisma.team.findFirst({ where: { id: body.teamId, companyId: user.companyId, visibleToClients: true }, include: { lead: true } });
+  const team = await prisma.team.findFirst({ where: { id: body.teamId, visibleToClients: true, company: { isListed: true } }, include: { lead: true } });
   if (!team) throw notFound('Team not found');
   const service = body.serviceId ? await prisma.teamService.findFirst({ where: { id: body.serviceId, teamId: team.id } }) : null;
   if (body.serviceId && !service) throw badRequest('That service is not offered by this team');
-  const client = await prisma.client.findUniqueOrThrow({ where: { id: user.clientId! } });
+  const client = await ensureClientRecord(team.companyId, user.id);
 
   const request = await prisma.serviceRequest.create({
-    data: { ...body, serviceId: service?.id ?? null, companyId: user.companyId, clientId: client.id, requestedById: user.id },
+    data: { ...body, serviceId: service?.id ?? null, companyId: team.companyId, clientId: client.id, requestedById: user.id },
     include: requestInclude,
   });
 
@@ -80,10 +83,10 @@ requestsRouter.post('/', requireRole('CLIENT'), async (req, res) => {
       service: service?.title,
       link: `${config.clientOrigin}/requests`,
     });
-    await sendMail({ ...mail, to: team.lead.email, kind: 'request', companyId: user.companyId });
+    await sendMail({ ...mail, to: team.lead.email, kind: 'request', companyId: team.companyId });
   }
-  await logActivity({ companyId: user.companyId, actorId: user.id, message: `requested "${request.title}" from the ${team.name} team` });
-  emit(rooms.company(user.companyId), 'request:changed', { id: request.id });
+  await logActivity({ companyId: team.companyId, actorId: user.id, message: `requested "${request.title}" from the ${team.name} team` });
+  emit(rooms.company(team.companyId), 'request:changed', { id: request.id });
   res.status(201).json({ request });
 });
 
@@ -92,6 +95,13 @@ async function loadManageable(user: AuthUser, id: string) {
   if (!request) throw notFound('Request not found');
   if (!canManageTeam(user, request.team)) throw forbidden('Only an admin or the team lead can handle this request');
   return request;
+}
+
+/** Pushes a notice (and a refresh) to the client account behind a request, if it has one. */
+function notifyClient(accountId: string | null, requestId: string, message: string) {
+  if (!accountId) return;
+  emit(rooms.user(accountId), 'notification', { message });
+  emit(rooms.user(accountId), 'request:changed', { id: requestId });
 }
 
 requestsRouter.patch('/:id', requireRole('ADMIN', 'MANAGER'), async (req, res) => {
@@ -104,11 +114,7 @@ requestsRouter.patch('/:id', requireRole('ADMIN', 'MANAGER'), async (req, res) =
   const verb = { IN_REVIEW: 'is reviewing', ACCEPTED: 'accepted', DECLINED: 'declined' }[body.status];
   await logActivity({ companyId: user.companyId, actorId: user.id, message: `${verb} ${existing.client.name}'s request "${existing.title}"` });
   emit([rooms.company(user.companyId)], 'request:changed', { id: request.id });
-  const clientUsers = await prisma.user.findMany({ where: { clientId: existing.clientId, isActive: true }, select: { id: true } });
-  for (const c of clientUsers) {
-    emit(rooms.user(c.id), 'notification', { message: `${existing.team.name} ${verb} your request "${existing.title}"` });
-    emit(rooms.user(c.id), 'request:changed', { id: request.id });
-  }
+  notifyClient(existing.client.accountId, request.id, `${request.company.name} ${verb} your request "${existing.title}"`);
   res.json({ request });
 });
 
@@ -152,7 +158,6 @@ requestsRouter.post('/:id/convert', requireRole('ADMIN', 'MANAGER'), async (req,
     clientVisible: true,
   });
   emit(rooms.company(user.companyId), 'request:changed', { id: existing.id });
-  const clientUsers = await prisma.user.findMany({ where: { clientId: existing.clientId, isActive: true }, select: { id: true } });
-  for (const c of clientUsers) emit(rooms.user(c.id), 'notification', { message: `Your request "${existing.title}" is now a live project` });
+  notifyClient(existing.client.accountId, existing.id, `Your request "${existing.title}" is now a live project`);
   res.status(201).json({ project });
 });

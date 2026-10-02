@@ -3,11 +3,12 @@ import { prisma } from '../lib/prisma';
 import { projectScope } from '../lib/access';
 import { localDate } from '../lib/dates';
 import { progressFor } from '../lib/progress';
-import { currentUser, requireAuth } from '../middleware/auth';
+import { missingProfileFields } from '../lib/profile';
+import { currentUser, requireAuth, requireStaff } from '../middleware/auth';
 import { leaveBalance } from './leaves.routes';
 
 export const dashboardRouter = Router();
-dashboardRouter.use(requireAuth);
+dashboardRouter.use(requireAuth, requireStaff);
 
 dashboardRouter.get('/', async (req, res) => {
   const user = currentUser(req);
@@ -29,32 +30,6 @@ dashboardRouter.get('/', async (req, res) => {
     manager: p.manager,
     progress: progress[p.id],
   }));
-
-  if (user.role === 'CLIENT') {
-    const [awaitingApproval, updates] = await Promise.all([
-      prisma.milestone.findMany({
-        where: { status: 'AWAITING_APPROVAL', project: projectScope(user) },
-        include: { project: { select: { id: true, name: true } } },
-      }),
-      prisma.activity.findMany({
-        where: { clientVisible: true, project: projectScope(user) },
-        include: { actor: { select: { id: true, name: true } }, project: { select: { id: true, name: true } } },
-        orderBy: { createdAt: 'desc' },
-        take: 15,
-      }),
-    ]);
-    // The company's delivery record, so clients can judge it on real numbers.
-    const [delivered, active, teams, teamsForClient] = await Promise.all([
-      prisma.project.count({ where: { companyId: user.companyId, status: 'COMPLETED' } }),
-      prisma.project.count({ where: { companyId: user.companyId, status: 'ACTIVE' } }),
-      prisma.team.count({ where: { companyId: user.companyId, visibleToClients: true } }),
-      prisma.team.findMany({
-        where: { companyId: user.companyId, projects: { some: projectScope(user) } },
-        select: { id: true, name: true, color: true, lead: { select: { name: true } }, _count: { select: { members: true } } },
-      }),
-    ]);
-    return res.json({ role: user.role, projects: projectCards, awaitingApproval, updates, trackRecord: { delivered, active, teams }, workingTeams: teamsForClient });
-  }
 
   const [myTasks, myAttendance, balance, recentActivity] = await Promise.all([
     prisma.task.findMany({
@@ -91,5 +66,7 @@ dashboardRouter.get('/', async (req, res) => {
     team = { headcount, present, onLeave, absent: Math.max(headcount - present - onLeave, 0), pendingLeaves, clients };
   }
 
-  res.json({ role: user.role, projects: projectCards, myTasks, myAttendance, balance, recentActivity, team });
+  // Admins are nudged to finish the public profile; until then clients can't find the company.
+  const listing = user.role === 'ADMIN' ? { isListed: company.isListed, missing: missingProfileFields(company) } : null;
+  res.json({ role: user.role, projects: projectCards, myTasks, myAttendance, balance, recentActivity, team, listing });
 });

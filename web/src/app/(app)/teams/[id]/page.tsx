@@ -5,18 +5,17 @@ import { useParams, useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { clsx } from "clsx";
 import { motion } from "motion/react";
-import { ArrowLeft, CheckCircle2, Eye, EyeOff, FolderKanban, Pencil, Plus, Send, Trash2, UserCog, Users } from "lucide-react";
-import { useAuth } from "@/components/auth-provider";
+import { ArrowLeft, CheckCircle2, Eye, EyeOff, FolderKanban, Pencil, Plus, Trash2, UserCog, Users } from "lucide-react";
 import { Stagger, StaggerItem, easeOut } from "@/components/motion";
 import { PriorityBadge, ProjectStatusBadge } from "@/components/shared";
-import { ServiceCard, TeamStatPill } from "@/components/teams/team-cards";
-import { MembersModal, RequestModal, ServiceFormModal, TeamFormModal } from "@/components/teams/team-forms";
+import { TeamStatPill } from "@/components/teams/team-cards";
+import { MembersModal, ServiceFormModal, TeamFormModal } from "@/components/teams/team-forms";
 import { Avatar, Badge, Button, Card, CardHeader, EmptyState, ErrorState, Field, FormError, Input, PageLoader, ProgressBar, Select, useToast } from "@/components/ui";
 import { api, errorMessage } from "@/lib/api";
 import { formatDate, taskStatusLabel } from "@/lib/format";
 import { formatINR, teamColor } from "@/lib/team-colors";
 import { useApi } from "@/lib/use-api";
-import type { Priority, Progress, ProjectStatus, TaskStatus, TeamColor, TeamService, TeamShowcase, UserBrief } from "@/lib/types";
+import type { Priority, Progress, ProjectStatus, TaskStatus, TeamColor, TeamService, UserBrief } from "@/lib/types";
 
 interface TeamDetail {
   id: string;
@@ -34,10 +33,6 @@ interface TeamDetail {
   recentTasks: { id: string; title: string; status: TaskStatus; priority: Priority; assignee: { id: string; name: string } | null; project: { id: string; name: string } }[];
 }
 
-export default function TeamPage() {
-  const { user } = useAuth();
-  return user.role === "CLIENT" ? <ClientTeamProfile /> : <StaffTeamWorkspace />;
-}
 
 function TeamHero({ name, tagline, color, children, badge }: { name: string; tagline: string | null; color: TeamColor; children?: React.ReactNode; badge?: React.ReactNode }) {
   const c = teamColor[color];
@@ -62,7 +57,7 @@ function TeamHero({ name, tagline, color, children, badge }: { name: string; tag
 
 // ---- Staff: the team's workspace ----------------------------------------------
 
-function StaffTeamWorkspace() {
+export default function TeamPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const toast = useToast();
@@ -394,94 +389,3 @@ function AssignTask({ team, onAssigned }: { team: TeamDetail; onAssigned: () => 
 }
 
 // ---- Client: the team's public profile ------------------------------------------
-
-function ClientTeamProfile() {
-  const { id } = useParams<{ id: string }>();
-  const { data, error, loading, reload } = useApi<{ team: TeamShowcase }>(`/teams/${id}`);
-  const [requesting, setRequesting] = useState<{ service: TeamService | null } | null>(null);
-
-  if (loading) return <PageLoader />;
-  if (error || !data) return <ErrorState message={error ?? "Could not load team"} onRetry={reload} />;
-  const team = data.team;
-  const people = [...(team.lead ? [{ ...team.lead, lead: true }] : []), ...team.members.map((m) => ({ ...m.user, lead: false })).filter((m) => m.name !== team.lead?.name)];
-
-  return (
-    <>
-      <Link href="/teams" className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted hover:text-ink">
-        <ArrowLeft className="size-4" /> All teams
-      </Link>
-      <TeamHero name={team.name} tagline={team.tagline} color={team.color}>
-        {team.lead && <TeamStatPill icon={UserCog}>Led by {team.lead.name}</TeamStatPill>}
-        <TeamStatPill icon={Users}>{people.length} people</TeamStatPill>
-        <TeamStatPill icon={CheckCircle2}>{team.projectsDelivered} projects delivered</TeamStatPill>
-        <button onClick={() => setRequesting({ service: null })} className="ml-auto inline-flex items-center gap-1.5 rounded-xl bg-white px-4 py-2 text-sm font-medium text-ink transition hover:bg-white/90">
-          <Send className="size-4" /> Request work
-        </button>
-      </TeamHero>
-
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="space-y-6 lg:col-span-2">
-          {team.description && (
-            <Card className="p-6">
-              <p className="mb-2 text-sm font-semibold">About the team</p>
-              <p className="text-sm leading-relaxed whitespace-pre-line text-ink/80">{team.description}</p>
-            </Card>
-          )}
-          <div>
-            <h2 className="mb-3 text-sm font-semibold">What we can do for you</h2>
-            {team.services.length === 0 ? (
-              <Card>
-                <EmptyState title="Services coming soon" description="You can still send the team a request describing what you need." />
-              </Card>
-            ) : (
-              <Stagger className="grid gap-4 sm:grid-cols-2">
-                {team.services.map((s) => (
-                  <StaggerItem key={s.id}>
-                    <ServiceCard
-                      service={s}
-                      color={team.color}
-                      action={
-                        <Button size="sm" onClick={() => setRequesting({ service: s })}>
-                          Request this
-                        </Button>
-                      }
-                    />
-                  </StaggerItem>
-                ))}
-              </Stagger>
-            )}
-          </div>
-        </div>
-        <div className="space-y-6">
-          <Card>
-            <CardHeader title="The team" />
-            <ul className="divide-y divide-line">
-              {people.map((p) => (
-                <li key={p.name} className="flex items-center gap-3 px-5 py-2.5">
-                  <Avatar name={p.name} />
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">
-                      {p.name} {p.lead && <Badge tone="purple">Lead</Badge>}
-                    </p>
-                    <p className="truncate text-xs text-muted">{p.designation ?? "Team member"}</p>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </Card>
-          {team.skills.length > 0 && (
-            <Card className="p-5">
-              <p className="mb-3 text-sm font-semibold">Skills &amp; tools</p>
-              <div className="flex flex-wrap gap-1.5">
-                {team.skills.map((s) => (
-                  <Badge key={s}>{s}</Badge>
-                ))}
-              </div>
-            </Card>
-          )}
-        </div>
-      </div>
-      {requesting && <RequestModal team={team} service={requesting.service} onClose={() => setRequesting(null)} />}
-    </>
-  );
-}

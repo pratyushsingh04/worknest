@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { motion } from "motion/react";
-import { ArrowRight, Award, Building2, FolderKanban, LogIn, Mail, Send, Sparkles, ThumbsUp, UsersRound } from "lucide-react";
+import { ArrowRight, Award, Building2, FolderKanban, LogIn, Search, Send, Sparkles, ThumbsUp, UsersRound } from "lucide-react";
 import { clsx } from "clsx";
 import { Faq } from "@/components/landing/faq";
 import { PortalPreview, clientBenefits } from "@/components/landing/for-clients";
@@ -17,26 +17,34 @@ import { Icon3D } from "@/components/three-d";
 const container = "mx-auto w-full max-w-[1760px] px-5 sm:px-8 lg:px-14";
 
 const record = [
-  { icon: Award, title: "Projects delivered", text: "How many projects the company has completed, counted from its own finished work and never typed in by hand." },
-  { icon: FolderKanban, title: "In delivery right now", text: "How much the company is handling at this moment, so you know the capacity you are relying on." },
-  { icon: UsersRound, title: "Teams and their leads", text: "Every team you can work with, who leads it, who is in it and the services it offers." },
+  { icon: Award, title: "Projects delivered", text: "How many projects each company has completed, counted from its own finished work and never typed in by hand." },
+  { icon: FolderKanban, title: "In delivery right now", text: "How much a company is handling at this moment, so you know the capacity you would be relying on." },
+  { icon: UsersRound, title: "Teams, departments, people", text: "Every team you can hire, who leads it, who is in it, and the full list of people who work at the company." },
 ];
 
 const journey = [
-  { icon: Mail, title: "You receive an invitation", text: "The company you work with invites you by email. The link is private, single-use and yours alone." },
-  { icon: LogIn, title: "Open your portal", text: "Choose your own password and sign in. Only your projects are there, nothing from anyone else." },
+  { icon: LogIn, title: "Create a free account", text: "Sign up as a client in a minute. You don't need an invitation, and you belong to no company." },
+  { icon: Search, title: "Browse every company", text: "See what each one does, what it is known for, its teams, its people and what it has delivered." },
+  { icon: Send, title: "Hand over your project", text: "Ask a team for one of its services, or post what you need and compare the proposals that come back." },
   { icon: ThumbsUp, title: "Follow and approve", text: "Watch progress move as work happens, then approve each milestone or send it back with a note." },
-  { icon: Send, title: "Ask for more", text: "Browse the company's teams and services and raise a new request whenever you need one." },
 ];
 
 const clientFaqs = [
   {
     q: "How do I get access?",
-    a: "The company delivering your project invites you by email. Open the link, choose a password and you are in. There is nothing to install and no workspace for you to set up.",
+    a: "Create a client account yourself. It is free, needs no invitation and takes about a minute. From there you can open any company listed on WorkNest.",
   },
   {
-    q: "What exactly can I see?",
-    a: "Your own projects with live progress, the milestones waiting for your approval, the team working for you, the company's delivery record, the services each team offers and a shared discussion with the people doing the work.",
+    q: "Which companies can I see?",
+    a: "Every company that has completed its public profile. When a new company registers and fills in what it does, it appears in the directory with its teams, services and people.",
+  },
+  {
+    q: "What can I see about a company?",
+    a: "What it does and specialises in, where it is, its teams and their leads, the services and prices each team offers, everyone who works there by department, and its delivery record.",
+  },
+  {
+    q: "What happens once I give a company a project?",
+    a: "It appears in your portal with live progress, its milestones, the team and department working on it, every update, and a shared conversation with the people doing the work.",
   },
   {
     q: "Can I see other clients' work?",
@@ -47,12 +55,14 @@ const clientFaqs = [
     a: "Yes. Progress is calculated from the tasks the team actually completes, and the delivery record is counted from finished projects. Nobody can edit these figures by hand.",
   },
   {
-    q: "How do I ask for new work?",
-    a: "Open Teams in your portal, pick a team, read what it offers and send a request. The team lead reviews it and, once accepted, it becomes a staffed project you can follow like any other.",
+    q: "What if I don't know which company to pick?",
+    a: "Post what you need. Every listed company sees it with your contact details and can reply with a proposal naming the team that would do the work. You choose the one you like.",
   },
 ];
 
 const strip = [
+  "Company directory",
+  "Real teams and people",
   "Live project progress",
   "Named team and lead",
   "Milestone sign-off",
@@ -62,6 +72,7 @@ const strip = [
   "Shared discussion",
   "Private by design",
   "Real-time updates",
+  "Proposals from companies",
   "Nothing to install",
 ];
 
@@ -145,11 +156,11 @@ export function ClientLanding({ onShowCompany }: { onShowCompany: () => void }) 
                 <span className="relative inline-flex size-2 rounded-full bg-emerald-400" />
               </span>
               <Sparkles className="size-3.5 text-emerald-300" />
-              For clients of companies on WorkNest
+              For anyone looking to hire a company
             </motion.span>
 
             <h1 className="mt-7 text-5xl leading-[1.04] font-semibold tracking-tight sm:text-6xl xl:text-[4.1rem]">
-              {["Always", "know", "your"].map((w, i) => (
+              {["Hire", "with", "proof.", "Know", "your"].map((w, i) => (
                 <Rise key={w} delay={0.45 + i * 0.08}>
                   {w}
                 </Rise>
@@ -167,20 +178,20 @@ export function ClientLanding({ onShowCompany }: { onShowCompany: () => void }) 
             </h1>
 
             <motion.p initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 1.05, ease: easeOut }} className="mx-auto mt-7 max-w-xl text-lg leading-relaxed text-white/60 xl:mx-0">
-              Your private portal shows how far your project has come, which team is building it and what the company has already delivered. You approve the work, and you can ask for more in one step.
+Browse every company registered on WorkNest: what it does, what it is known for, who works there and what it has delivered. Give one your project, then watch its progress, its team and every update, live.
             </motion.p>
 
             <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 1.2, ease: easeOut }} className="mt-9 flex flex-wrap justify-center gap-3 xl:justify-start">
               <Magnetic>
-                <Link href="/login" className="group inline-flex items-center gap-2 rounded-xl bg-white px-6 py-3.5 text-sm font-semibold text-night shadow-[0_10px_30px_-10px_rgb(255_255_255_/_0.35)]">
-                  Sign in to your portal
+                <Link href="/register/client" className="group inline-flex items-center gap-2 rounded-xl bg-white px-6 py-3.5 text-sm font-semibold text-night shadow-[0_10px_30px_-10px_rgb(255_255_255_/_0.35)]">
+                  Join as a client
                   <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
                 </Link>
               </Magnetic>
               <Magnetic>
-                <a href="#access" className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-6 py-3.5 text-sm font-semibold backdrop-blur transition-colors hover:bg-white/10">
-                  How you get access
-                </a>
+                <Link href="/login" className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-6 py-3.5 text-sm font-semibold backdrop-blur transition-colors hover:bg-white/10">
+                  Sign in
+                </Link>
               </Magnetic>
             </motion.div>
           </div>
@@ -210,8 +221,8 @@ export function ClientLanding({ onShowCompany }: { onShowCompany: () => void }) 
       <section className={clsx(container, "py-24 lg:py-32")}>
         <div className="max-w-5xl">
           <ScrollRevealText
-            text="You shouldn't have to chase anyone for an update. When a company runs on WorkNest, your project speaks for itself: the progress is live, the team is named, and nothing is finished until you say so."
-            highlight={["live,", "named,", "you", "say", "so."]}
+            text="Choosing a company shouldn't be a leap of faith, and working with one shouldn't mean chasing updates. Here every company shows its real teams and its real record, the progress is live, and nothing is finished until you say so."
+            highlight={["real", "live,", "you", "say", "so."]}
           />
         </div>
       </section>
@@ -226,7 +237,7 @@ export function ClientLanding({ onShowCompany }: { onShowCompany: () => void }) 
 
       {/* What you get */}
       <section id="portal" className={clsx(container, "py-28 lg:py-36")}>
-        <SectionIntro eyebrow="Your portal" title="Everything you need to trust the work." lead="Six things every client gets from the first day, with no setup on your side." />
+        <SectionIntro eyebrow="Your portal" title="Everything you need to trust the work." lead="Six things every client gets from the first day a company starts their project." />
         <div className="mt-16 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {clientBenefits.map((b, i) => (
             <motion.div
@@ -255,7 +266,7 @@ export function ClientLanding({ onShowCompany }: { onShowCompany: () => void }) 
       {/* Track record */}
       <section id="record" className="relative border-y border-white/5 bg-white/[0.015] py-28 lg:py-36">
         <div className={container}>
-          <SectionIntro eyebrow="Track record" title="Judge the company on evidence, not promises." lead="Your dashboard shows the company's delivery record as live figures, drawn from the work it has actually done." />
+          <SectionIntro eyebrow="Track record" title="Judge every company on evidence, not promises." lead="Each company's page shows its delivery record as live figures, drawn from the work it has actually done on WorkNest." />
           <div className="mt-16 grid gap-6 md:grid-cols-3">
             {record.map((r, i) => (
               <Reveal key={r.title} delay={i * 0.1} className="border-glow rounded-[1.75rem] bg-gradient-to-b from-white/[0.06] to-white/[0.02] p-8">
@@ -273,7 +284,7 @@ export function ClientLanding({ onShowCompany }: { onShowCompany: () => void }) 
 
       {/* How you get access */}
       <section id="access" className={clsx(container, "py-28 lg:py-36")}>
-        <SectionIntro eyebrow="How it works" title="From invitation to sign-off." lead="No account to create and nothing to install. The company invites you, and your portal is ready." />
+        <SectionIntro eyebrow="How it works" title="From sign-up to sign-off." lead="No invitation and nothing to install. Create an account and the whole directory is open to you." />
         <div className="relative mt-20 grid gap-12 sm:grid-cols-2 lg:grid-cols-4">
           <motion.div
             className="absolute top-8 right-[12%] left-[12%] hidden h-px origin-left bg-gradient-to-r from-indigo-500/0 via-indigo-400 to-indigo-500/0 lg:block"
@@ -309,12 +320,12 @@ export function ClientLanding({ onShowCompany }: { onShowCompany: () => void }) 
           <div className="absolute -top-32 left-1/2 h-80 w-[900px] -translate-x-1/2 bg-[radial-gradient(ellipse_at_center,rgb(79_70_229_/_0.4),transparent_65%)]" />
           <div className="relative">
             <p className="text-sm tracking-[0.3em] text-indigo-300 uppercase">Your project, in view</p>
-            <h2 className="mx-auto mt-5 max-w-3xl text-4xl leading-tight font-semibold tracking-tight sm:text-6xl">Already invited? Your portal is waiting.</h2>
-            <p className="mx-auto mt-5 max-w-xl text-lg text-white/60">Sign in with the email your invitation was sent to. If your company isn&apos;t on WorkNest yet, show them what it does.</p>
+            <h2 className="mx-auto mt-5 max-w-3xl text-4xl leading-tight font-semibold tracking-tight sm:text-6xl">Find the company. Follow the work.</h2>
+            <p className="mx-auto mt-5 max-w-xl text-lg text-white/60">Create a free client account and open the directory. If you run a company yourself, register it and clients will find you here.</p>
             <div className="mt-10 flex flex-wrap justify-center gap-3">
               <Magnetic>
-                <Link href="/login" className="group inline-flex items-center gap-2 rounded-xl bg-white px-7 py-4 text-sm font-semibold text-night">
-                  Sign in to your portal <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
+                <Link href="/register/client" className="group inline-flex items-center gap-2 rounded-xl bg-white px-7 py-4 text-sm font-semibold text-night">
+                  Join as a client <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
                 </Link>
               </Magnetic>
               <Magnetic>
