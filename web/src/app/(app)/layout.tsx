@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { clsx } from "clsx";
 import { AnimatePresence, motion } from "motion/react";
 import { Briefcase, CalendarClock, CalendarDays, CheckSquare, FolderKanban, Globe2, Inbox, LayoutDashboard, LogOut, Megaphone, Menu, Settings, ShieldCheck, Users, UsersRound, X } from "lucide-react";
+import { Assistant } from "@/components/assistant";
 import { AuthProvider, useAuth } from "@/components/auth-provider";
 import { Logo } from "@/components/logo";
 import { Avatar } from "@/components/ui";
@@ -164,6 +165,7 @@ function Shell({ children }: { children: React.ReactNode }) {
           <Logo />
         </header>
         <main className="relative mx-auto max-w-[1600px] px-4 py-6 sm:px-6 lg:px-10 lg:py-8">{children}</main>
+        <Assistant tone="light" />
       </div>
     </div>
   );

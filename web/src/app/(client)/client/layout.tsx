@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { clsx } from "clsx";
 import { AnimatePresence, motion } from "motion/react";
 import { Building2, FolderKanban, Home, LogOut, Megaphone, UserRound } from "lucide-react";
+import { Assistant } from "@/components/assistant";
 import { AuthProvider, useAuth } from "@/components/auth-provider";
 import { CLoader, Face } from "@/components/client/ui";
 import { LogoMark } from "@/components/logo";
@@ -120,6 +121,8 @@ function Shell({ children }: { children: React.ReactNode }) {
       </header>
 
       <main className="relative mx-auto max-w-[1400px] px-4 pt-28 pb-32 sm:px-6 md:pb-20">{children}</main>
+
+      <Assistant tone="dark" />
 
       {/* Phone navigation */}
       <nav className="fixed inset-x-3 bottom-3 z-40 flex items-center justify-around rounded-3xl border border-white/10 bg-night/85 p-1.5 backdrop-blur-xl md:hidden">
