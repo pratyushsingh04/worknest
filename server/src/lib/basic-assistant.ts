@@ -45,6 +45,7 @@ const staffHelp = (lead: boolean) =>
     '- What are my tasks?',
     '- How are the projects doing? (or name a project)',
     '- How much leave do I have? Did I check in today?',
+    '- What meetings do I have? (or name a meeting for its summary)',
     ...(lead ? ["- Who hasn't checked in today?", '- Any client requests waiting?', '- What are clients looking for?'] : []),
   ].join('\n');
 
@@ -79,6 +80,25 @@ async function answerStaff(text: string, tools: RunnableTool[], lead: boolean): 
     const open = requests.filter((r) => r.status === 'NEW' || r.status === 'IN_REVIEW' || r.status === 'ACCEPTED');
     if (!open.length) return 'No client requests are waiting on you.';
     return [`${plural(open.length, 'client request')} waiting:`, ...open.slice(0, 8).map((r) => `- **${r.title}** from ${r.client} for the ${r.team} team: ${nice(r.status)}`), 'Open Requests to accept one or start a project.'].join('\n');
+  }
+  if (has(text, 'meeting', 'meet', 'call', 'standup', 'decided', 'action item')) {
+    const all = await call(tools, 'list_my_meetings');
+    if (all) {
+      const every: Row[] = [...all.upcoming, ...all.past];
+      const lower = text.toLowerCase();
+      const named = every.find((m) => lower.includes(String(m.title).toLowerCase()));
+      if (named) {
+        const m = await call(tools, 'get_meeting', { title: named.title });
+        if (!m.summarised) return `**${m.title}** hasn't been summarised yet. Open it in Meetings, add the notes and press Summarise.`;
+        const lines = [`**${m.title}**: ${m.summary}`];
+        if (m.decisions.length) lines.push('Decisions:', ...(m.decisions as string[]).map((d) => `- ${d}`));
+        if ((m.actionItems ?? []).length) lines.push('Action items:', ...(m.actionItems as Row[]).map((a) => `- ${a.owner ? `${a.owner}: ` : ''}${a.task}${a.due ? ` (by ${a.due})` : ''}`));
+        return lines.join('\n');
+      }
+      const when = (iso: string) => new Date(iso).toLocaleString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+      if (!all.upcoming.length) return all.past.length ? `No meetings coming up. Your last one was **${all.past[0].title}**${all.past[0].hasSummary ? ', and it has a summary' : ''}.` : 'You have no meetings yet. Schedule one from Meetings.';
+      return [`${plural(all.upcoming.length, 'meeting')} coming up:`, ...(all.upcoming as Row[]).slice(0, 8).map((m) => `- **${m.title}**, ${when(m.startsAt)}, ${m.durationMin} min, with ${plural(m.attendees.length, 'person', 'people')}`)].join('\n');
+    }
   }
   if (has(text, 'leave', 'chhutti', 'chutti', 'attendance', 'check in', 'checked in', 'balance', 'holiday')) {
     const a = await call(tools, 'get_my_attendance_and_leave');

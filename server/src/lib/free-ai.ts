@@ -103,3 +103,31 @@ export async function runFreeAssistant(provider: Provider, system: string, histo
   }
   return '';
 }
+
+/** One plain completion, no tools: used for summaries. Falls through the same model list when one is busy. */
+export async function freeComplete(provider: Provider, system: string, user: string): Promise<string> {
+  const models = [provider.model, ...provider.fallbacks.filter((m) => m !== provider.model)];
+  let lastStatus = 0;
+  for (const model of models) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const res = await fetch(provider.url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${provider.key}` },
+        body: JSON.stringify({ model, messages: [{ role: 'system', content: system }, { role: 'user', content: user }] }),
+        signal: AbortSignal.timeout(60_000),
+      });
+      if (res.ok) {
+        const data = (await res.json()) as { choices?: { message?: { content?: string | null } }[] };
+        const text = data.choices?.[0]?.message?.content?.trim();
+        if (text) return text;
+        break;
+      }
+      lastStatus = res.status;
+      console.warn(`Summary (${provider.name}): ${model} answered ${res.status}.`);
+      if (res.status === 401 || res.status === 403) throw new HttpError(503, 'The AI key on the server was rejected.');
+      if (res.status !== 503 && res.status !== 500) break;
+      await new Promise((r) => setTimeout(r, 1500));
+    }
+  }
+  throw new HttpError(502, `The AI model could not be reached (${lastStatus}).`);
+}

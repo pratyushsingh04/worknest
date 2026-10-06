@@ -7,7 +7,7 @@ import { resolve } from 'node:path';
 
 const dataDir = resolve(process.cwd(), '.pgdata');
 const pidFile = resolve(dataDir, 'postmaster.pid');
-const PORT = 5433;
+const PORT = Number(process.env.DEV_DB_PORT ?? 5433);
 
 /** True if something is already accepting connections on the Postgres port. */
 function portOpen(port: number): Promise<boolean> {

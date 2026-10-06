@@ -22,6 +22,7 @@ import { requestsRouter } from './modules/requests.routes';
 import { marketRouter } from './modules/market.routes';
 import { needsRouter } from './modules/needs.routes';
 import { assistantRouter } from './modules/assistant.routes';
+import { meetingsRouter } from './modules/meetings.routes';
 
 export function createApp() {
   const app = express();
@@ -50,6 +51,7 @@ export function createApp() {
   app.use('/api/market', marketRouter);
   app.use('/api/needs', needsRouter);
   app.use('/api/assistant', assistantRouter);
+  app.use('/api/meetings', meetingsRouter);
 
   app.use('/api', (_req, res) => res.status(404).json({ error: 'Route not found' }));
   app.use(errorHandler);

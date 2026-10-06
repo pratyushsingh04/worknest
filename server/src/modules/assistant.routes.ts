@@ -157,6 +157,38 @@ export function staffTools(user: AuthUser) {
         return json({ today, workStartsAt: company.workStartTime, checkedInToday: recent.some((r) => r.date === today), last14Days: recent, leaveBalance: balance, recentLeaveRequests: leaves });
       },
     }),
+    betaTool({
+      name: 'list_my_meetings',
+      description: "The signed-in person's meetings: upcoming ones with time, organiser and attendees, and recent past ones with whether a summary exists. Use for 'what meetings do I have' or to find a meeting's title.",
+      inputSchema: noInput,
+      run: async () => {
+        const now = Date.now();
+        const meetings = await prisma.meeting.findMany({
+          where: { companyId: user.companyId, ...(user.role === 'ADMIN' ? {} : { OR: [{ organiserId: user.id }, { attendees: { some: { userId: user.id } } }] }) },
+          select: { title: true, startsAt: true, durationMin: true, summary: true, organiser: { select: { name: true } }, attendees: { select: { user: { select: { name: true } } } } },
+          orderBy: { startsAt: 'desc' },
+          take: 40,
+        });
+        const row = (m: (typeof meetings)[number]) => ({ title: m.title, startsAt: m.startsAt.toISOString(), durationMin: m.durationMin, organiser: m.organiser?.name ?? null, attendees: m.attendees.map((a) => a.user.name), hasSummary: !!m.summary });
+        const ended = (m: (typeof meetings)[number]) => m.startsAt.getTime() + m.durationMin * 60_000 < now;
+        return json({ upcoming: meetings.filter((m) => !ended(m)).reverse().map(row), past: meetings.filter(ended).slice(0, 15).map(row) });
+      },
+    }),
+    betaTool({
+      name: 'get_meeting',
+      description: "One meeting in detail: agenda, attendees, and its summary, decisions and action items if it has been summarised. Pass any distinctive part of the meeting title. Use for 'what was decided in X' or 'what are my action items from X'.",
+      inputSchema: { type: 'object', properties: { title: { type: 'string', description: 'Meeting title or part of it' } }, required: ['title'], additionalProperties: false },
+      run: async (input) => {
+        const m = await prisma.meeting.findFirst({
+          where: { companyId: user.companyId, title: { contains: String(input.title ?? '').trim(), mode: 'insensitive' }, ...(user.role === 'ADMIN' ? {} : { OR: [{ organiserId: user.id }, { attendees: { some: { userId: user.id } } }] }) },
+          select: { title: true, agenda: true, startsAt: true, durationMin: true, summary: true, decisions: true, actionItems: true, notes: true, organiser: { select: { name: true } }, attendees: { select: { user: { select: { name: true } } } } },
+          orderBy: { startsAt: 'desc' },
+        });
+        if (!m) return json({ error: `No meeting matching "${input.title}" that this person can see.` });
+        const { notes, ...rest } = m;
+        return json({ ...rest, startsAt: m.startsAt.toISOString(), organiser: m.organiser?.name ?? null, attendees: m.attendees.map((a) => a.user.name), summarised: !!m.summary, notesWritten: !!notes?.trim() });
+      },
+    }),
   ];
   if (!leads) return tools;
 
@@ -305,7 +337,7 @@ Today is ${localDate(new Date(), me.company?.timezone ?? 'Asia/Kolkata')}.
 
 Answer questions about this person's own work using the tools. The tools return live data and already apply this person's permissions, so anything they return is theirs to see and anything they do not return is not available to this person. When a question needs data, call a tool before answering; never estimate numbers, names, dates or statuses from memory. If a tool returns nothing relevant, say so plainly.
 
-You can read but not change anything. When someone asks you to do something (assign a task, approve leave, approve a milestone, send a request), tell them where in WorkNest to do it, in one sentence.
+You can read but not change anything. When someone asks you to do something (assign a task, approve leave, approve a milestone, send a request, schedule a meeting), tell them where in WorkNest to do it, in one sentence.
 
 Write the way a sharp colleague would in chat: lead with the answer, keep it short, use a short list only when there are several items, and name people, projects and dates exactly as the data gives them. Reply in the language the person writes in. Plain text with simple Markdown lists and bold is fine; no tables or headings.`;
 }

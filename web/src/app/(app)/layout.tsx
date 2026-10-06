@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { clsx } from "clsx";
 import { AnimatePresence, motion } from "motion/react";
-import { Briefcase, CalendarClock, CalendarDays, CheckSquare, FolderKanban, Globe2, Inbox, LayoutDashboard, LogOut, Megaphone, Menu, Settings, ShieldCheck, Users, UsersRound, X } from "lucide-react";
+import { Briefcase, CalendarClock, CalendarDays, CheckSquare, FolderKanban, Globe2, Inbox, LayoutDashboard, LogOut, Megaphone, Menu, Settings, ShieldCheck, Users, UsersRound, Video, X } from "lucide-react";
 import { Assistant } from "@/components/assistant";
 import { AuthProvider, useAuth } from "@/components/auth-provider";
 import { Logo } from "@/components/logo";
@@ -25,6 +25,7 @@ const sections = [
       { href: "/projects", label: "Projects", icon: FolderKanban, roles: EVERYONE },
       { href: "/my-tasks", label: "My tasks", icon: CheckSquare, roles: STAFF },
       { href: "/teams", label: "Teams", icon: UsersRound, roles: EVERYONE },
+      { href: "/meetings", label: "Meetings", icon: Video, roles: STAFF },
       { href: "/requests", label: "Requests", icon: Inbox, roles: LEADS },
       { href: "/leads", label: "Client needs", icon: Megaphone, roles: LEADS },
     ],

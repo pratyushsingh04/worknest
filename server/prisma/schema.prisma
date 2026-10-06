@@ -99,6 +99,7 @@ model Company {
   teams      Team[]
   requests   ServiceRequest[]
   proposals  Proposal[]
+  meetings   Meeting[]
 }
 
 model User {
@@ -121,26 +122,28 @@ model User {
   isPlatformAdmin Boolean   @default(false)
   createdAt       DateTime  @default(now())
 
-  company         Company?         @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  manager         User?            @relation("Reports", fields: [managerId], references: [id], onDelete: SetNull)
-  reports         User[]           @relation("Reports")
-  clientRecords   Client[]         @relation("ClientAccount")
-  needs           Need[]
-  proposals       Proposal[]
-  managedProjects Project[]        @relation("ProjectManager")
-  memberships     ProjectMember[]
-  assignedTasks   Task[]           @relation("TaskAssignee")
-  attendance      Attendance[]
-  leaves          Leave[]          @relation("LeaveApplicant")
-  reviewedLeaves  Leave[]          @relation("LeaveReviewer")
-  activities      Activity[]
-  comments        Comment[]
-  invitesSent     Invite[]         @relation("InviteSender")
-  logins          LoginEvent[]
-  passwordResets  PasswordReset[]
-  ledTeams        Team[]           @relation("TeamLead")
-  teamMemberships TeamMember[]
-  serviceRequests ServiceRequest[] @relation("Requester")
+  company           Company?          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  manager           User?             @relation("Reports", fields: [managerId], references: [id], onDelete: SetNull)
+  reports           User[]            @relation("Reports")
+  clientRecords     Client[]          @relation("ClientAccount")
+  needs             Need[]
+  proposals         Proposal[]
+  organisedMeetings Meeting[]         @relation("MeetingOrganiser")
+  meetingSeats      MeetingAttendee[]
+  managedProjects   Project[]         @relation("ProjectManager")
+  memberships       ProjectMember[]
+  assignedTasks     Task[]            @relation("TaskAssignee")
+  attendance        Attendance[]
+  leaves            Leave[]           @relation("LeaveApplicant")
+  reviewedLeaves    Leave[]           @relation("LeaveReviewer")
+  activities        Activity[]
+  comments          Comment[]
+  invitesSent       Invite[]          @relation("InviteSender")
+  logins            LoginEvent[]
+  passwordResets    PasswordReset[]
+  ledTeams          Team[]            @relation("TeamLead")
+  teamMemberships   TeamMember[]
+  serviceRequests   ServiceRequest[]  @relation("Requester")
 
   @@index([companyId])
 }
@@ -537,4 +540,41 @@ model Proposal {
 
   @@unique([needId, companyId])
   @@index([companyId])
+}
+
+// A meeting between people inside one company. Notes are written during or after it,
+// and the summary (with decisions and action items) is produced from those notes.
+model Meeting {
+  id           String    @id @default(cuid())
+  companyId    String
+  organiserId  String?
+  title        String
+  agenda       String?
+  startsAt     DateTime
+  durationMin  Int       @default(30)
+  joinUrl      String? // video call link; generated when the organiser doesn't supply one
+  notes        String?
+  summary      String?
+  decisions    String[]
+  actionItems  Json? // [{ owner, task, due }]
+  summaryMode  String? // "ai" or "basic": how the summary was produced
+  summarisedAt DateTime?
+  createdAt    DateTime  @default(now())
+
+  company   Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  organiser User?             @relation("MeetingOrganiser", fields: [organiserId], references: [id], onDelete: SetNull)
+  attendees MeetingAttendee[]
+
+  @@index([companyId, startsAt])
+}
+
+model MeetingAttendee {
+  meetingId String
+  userId    String
+
+  meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([meetingId, userId])
+  @@index([userId])
 }

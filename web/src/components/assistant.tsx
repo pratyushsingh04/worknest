@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { clsx } from "clsx";
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowUp, Sparkles, X } from "lucide-react";
+import { ArrowUp, Check, Copy, Maximize2, Minimize2, Sparkles, SquarePen, X } from "lucide-react";
 import { useAuth } from "@/components/auth-provider";
 import { api } from "@/lib/api";
 
@@ -18,10 +18,21 @@ interface Turn {
 const API_ORIGIN = process.env.NEXT_PUBLIC_SOCKET_URL ?? "http://localhost:4000";
 
 const starters = {
-  staff: ["What should I work on today?", "Which projects are behind?", "How much leave do I have left?"],
-  lead: ["Who hasn't checked in today?", "Which projects are behind?", "Any client requests waiting on us?"],
-  client: ["Where do my projects stand?", "Is anything waiting for my approval?", "Find a company that builds mobile apps"],
+  staff: ["What should I work on today?", "What meetings do I have?", "Which projects are behind?", "How much leave do I have left?"],
+  lead: ["Who hasn't checked in today?", "Which projects are behind?", "What meetings do I have?", "Any client requests waiting on us?"],
+  client: ["Where do my projects stand?", "Is anything waiting for my approval?", "Find a company that builds mobile apps", "What happened to my requests?"],
 };
+
+// The conversation survives page changes and reloads for as long as the tab is open.
+const STORE = "wn-assistant";
+function restore(userId: string): Turn[] {
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(STORE) ?? "null") as { userId: string; turns: Turn[] } | null;
+    return saved?.userId === userId && Array.isArray(saved.turns) ? saved.turns : [];
+  } catch {
+    return [];
+  }
+}
 
 /**
  * Answers go straight to the API rather than through the web proxy, because a reply
@@ -33,6 +44,8 @@ async function ask(messages: Turn[]): Promise<{ reply: string; basic: boolean }>
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
     body: JSON.stringify({ messages: messages.map(({ role, content }) => ({ role, content })) }),
+  }).catch(() => {
+    throw new Error("Couldn't reach the assistant. Check your connection and try again.");
   });
   const data = (await res.json().catch(() => ({}))) as { reply?: string; error?: string; mode?: "ai" | "basic" };
   if (!res.ok || !data.reply) throw new Error(data.error ?? "The assistant could not answer just now. Please try again.");
@@ -77,7 +90,39 @@ export function Assistant({ tone }: { tone: "light" | "dark" }) {
   const [enabled, setEnabled] = useState<boolean | null>(null);
   // "basic" means no language model is configured and answers come from templates.
   const [mode, setMode] = useState<"ai" | "basic">("ai");
-  const [turns, setTurns] = useState<Turn[]>([]);
+  const [turns, setTurns] = useState<Turn[]>(() => (typeof window === "undefined" ? [] : restore(user.id)));
+  const [wide, setWide] = useState(false);
+  const [copied, setCopied] = useState<number | null>(null);
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(STORE, JSON.stringify({ userId: user.id, turns: turns.slice(-40) }));
+    } catch {
+      // Storage can be unavailable (private windows); the chat still works for this page.
+    }
+  }, [turns, user.id]);
+
+  // Ctrl+J (or Cmd+J) opens and closes the assistant from anywhere.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "j") {
+        e.preventDefault();
+        setOpen((o) => !o);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  async function copy(text: string, index: number) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(index);
+      setTimeout(() => setCopied(null), 1500);
+    } catch {
+      // Clipboard access can be refused; nothing to do.
+    }
+  }
   const [draft, setDraft] = useState("");
   const [thinking, setThinking] = useState(false);
   const scroller = useRef<HTMLDivElement>(null);
@@ -149,6 +194,7 @@ export function Assistant({ tone }: { tone: "light" | "dark" }) {
             aria-label="Open the assistant"
           >
             <Sparkles className="size-4" /> Ask WorkNest
+            <kbd className={clsx("ml-1 hidden rounded px-1.5 py-0.5 text-[10px] font-medium sm:inline", dark ? "bg-night/15" : "bg-white/20")}>Ctrl J</kbd>
           </motion.button>
         )}
       </AnimatePresence>
@@ -165,7 +211,8 @@ export function Assistant({ tone }: { tone: "light" | "dark" }) {
             exit={{ opacity: 0, y: 20, scale: 0.94 }}
             transition={{ type: "spring", stiffness: 320, damping: 28 }}
             className={clsx(
-              "fixed right-3 z-50 flex h-[min(620px,calc(100vh-7rem))] w-[min(410px,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-3xl shadow-[0_40px_100px_-30px_rgb(0_0_0_/_0.55)] sm:right-5",
+              "fixed right-3 z-50 flex flex-col overflow-hidden rounded-3xl shadow-[0_40px_100px_-30px_rgb(0_0_0_/_0.55)] transition-[width,height] duration-300 sm:right-5",
+              wide ? "h-[min(820px,calc(100vh-4rem))] w-[min(720px,calc(100vw-1.5rem))]" : "h-[min(620px,calc(100vh-7rem))] w-[min(410px,calc(100vw-1.5rem))]",
               dark ? "border-glow bottom-24 bg-night-2 text-white md:bottom-6" : "bottom-5 border border-line bg-surface text-ink",
             )}
           >
@@ -179,9 +226,19 @@ export function Assistant({ tone }: { tone: "light" | "dark" }) {
                   <p className={clsx("text-xs", dark ? "text-white/45" : "text-muted")}>{mode === "basic" ? "Basic mode · answers from your live data" : "Answers from your live data. Read-only."}</p>
                 </div>
               </div>
-              <button onClick={() => setOpen(false)} className={clsx("rounded-full p-2 transition-colors", dark ? "text-white/50 hover:bg-white/10 hover:text-white" : "text-muted hover:bg-canvas hover:text-ink")} aria-label="Close the assistant">
-                <X className="size-4" />
-              </button>
+              <div className="flex items-center">
+                {turns.length > 0 && (
+                  <button onClick={() => setTurns([])} className={clsx("rounded-full p-2 transition-colors", dark ? "text-white/50 hover:bg-white/10 hover:text-white" : "text-muted hover:bg-canvas hover:text-ink")} aria-label="Start a new chat" title="New chat">
+                    <SquarePen className="size-4" />
+                  </button>
+                )}
+                <button onClick={() => setWide((w) => !w)} className={clsx("hidden rounded-full p-2 transition-colors sm:block", dark ? "text-white/50 hover:bg-white/10 hover:text-white" : "text-muted hover:bg-canvas hover:text-ink")} aria-label={wide ? "Make the assistant smaller" : "Make the assistant larger"} title={wide ? "Smaller" : "Larger"}>
+                  {wide ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
+                </button>
+                <button onClick={() => setOpen(false)} className={clsx("rounded-full p-2 transition-colors", dark ? "text-white/50 hover:bg-white/10 hover:text-white" : "text-muted hover:bg-canvas hover:text-ink")} aria-label="Close the assistant" title="Close (Ctrl+J)">
+                  <X className="size-4" />
+                </button>
+              </div>
             </header>
 
             <div ref={scroller} className="flex-1 space-y-3 overflow-y-auto px-5 py-4 scroll-thin">
@@ -209,7 +266,7 @@ export function Assistant({ tone }: { tone: "light" | "dark" }) {
                 </div>
               ) : (
                 turns.map((t, i) => (
-                  <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={clsx("flex", t.role === "user" && "justify-end")}>
+                  <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={clsx("group/turn flex items-end gap-1", t.role === "user" && "justify-end")}>
                     <div
                       className={clsx(
                         "max-w-[88%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed",
@@ -219,8 +276,26 @@ export function Assistant({ tone }: { tone: "light" | "dark" }) {
                       {t.role === "user" ? t.content : <Rich text={t.content} />}
                       {t.basic && mode === "ai" && <p className={clsx("mt-2 text-[11px]", dark ? "text-white/35" : "text-muted")}>The AI model was busy, so this is a basic answer.</p>}
                     </div>
+                    {t.role === "assistant" && !t.failed && (
+                      <button onClick={() => copy(t.content, i)} className={clsx("mb-1 rounded-full p-1.5 opacity-0 transition-opacity group-hover/turn:opacity-100 focus:opacity-100", dark ? "text-white/45 hover:text-white" : "text-muted hover:text-ink")} aria-label="Copy this answer" title="Copy">
+                        {copied === i ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+                      </button>
+                    )}
                   </motion.div>
                 ))
+              )}
+              {/* After an answer, the other things worth asking are one tap away. */}
+              {turns.length > 0 && !thinking && turns[turns.length - 1].role === "assistant" && (
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {suggestions
+                    .filter((s) => !turns.some((t) => t.content === s))
+                    .slice(0, 3)
+                    .map((s) => (
+                      <button key={s} onClick={() => send(s)} className={clsx("rounded-full px-3 py-1.5 text-xs transition-colors", dark ? "bg-white/[0.05] text-white/70 hover:bg-white/10" : "bg-canvas text-ink/70 ring-1 ring-line hover:bg-brand-soft")}>
+                        {s}
+                      </button>
+                    ))}
+                </div>
               )}
               {thinking && (
                 <div className={clsx("flex w-fit items-center gap-1.5 rounded-2xl rounded-bl-md px-4 py-3.5", dark ? "bg-white/[0.06]" : "bg-canvas")} role="status" aria-label="Looking that up">
