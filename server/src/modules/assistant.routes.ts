@@ -7,6 +7,7 @@ import { projectScope } from '../lib/access';
 import type { AuthUser } from '../lib/auth';
 import { localDate } from '../lib/dates';
 import { HttpError, tooManyRequests } from '../lib/errors';
+import { freeProvider, runFreeAssistant, type RunnableTool } from '../lib/free-ai';
 import { progressFor } from '../lib/progress';
 import { hit } from '../lib/rate-limit';
 import { currentUser, requireAuth } from '../middleware/auth';
@@ -18,7 +19,9 @@ export const assistantRouter = Router();
 assistantRouter.use(requireAuth);
 
 const MODEL = 'claude-opus-5-5';
-const enabled = () => !!(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN);
+// Claude when its key is set; otherwise a free-tier provider (Gemini or Groq) if one is configured.
+const hasClaude = () => !!(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN);
+const enabled = () => hasClaude() || !!freeProvider();
 let client: Anthropic | null = null;
 const anthropic = () => (client ??= new Anthropic());
 
@@ -324,6 +327,14 @@ assistantRouter.post('/chat', async (req, res) => {
   const retry = hit(`assistant:${user.id}`, 40, 60 * 60 * 1000);
   if (retry) throw tooManyRequests(retry);
   const { messages } = chatBody.parse(req.body);
+  const tools = user.role === 'CLIENT' ? clientTools(user) : staffTools(user);
+  const fallbackReply = "I couldn't put an answer together for that. Try asking it another way.";
+
+  const free = hasClaude() ? null : freeProvider();
+  if (free) {
+    const reply = await runFreeAssistant(free, await systemPrompt(user), messages, tools as unknown as RunnableTool[]);
+    return res.json({ reply: reply || fallbackReply });
+  }
 
   try {
     const final = await anthropic().beta.messages.toolRunner({
@@ -335,7 +346,7 @@ assistantRouter.post('/chat', async (req, res) => {
       betas: ['server-side-fallback-2026-07-01'],
       fallbacks: 'default',
       system: await systemPrompt(user),
-      tools: user.role === 'CLIENT' ? clientTools(user) : staffTools(user),
+      tools,
       messages,
       max_iterations: 8,
     });
@@ -346,7 +357,7 @@ assistantRouter.post('/chat', async (req, res) => {
       .map((b) => b.text)
       .join('\n')
       .trim();
-    res.json({ reply: reply || "I couldn't put an answer together for that. Try asking it another way." });
+    res.json({ reply: reply || fallbackReply });
   } catch (err) {
     if (err instanceof Anthropic.AuthenticationError || err instanceof Anthropic.PermissionDeniedError) {
       console.error('Assistant: the AI API key was rejected.');

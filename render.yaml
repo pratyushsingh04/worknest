@@ -20,7 +20,12 @@ services:
           property: connectionString
       - key: WEB_ORIGIN
         value: https://worknest-snowy-five.vercel.app
-      # Switches on the in-app assistant. Without it the assistant panel says it is off.
+      # The in-app assistant is off until one of these keys is set. GEMINI_API_KEY and
+      # GROQ_API_KEY have free tiers; ANTHROPIC_API_KEY (paid) wins if it is set too.
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
       - key: ANTHROPIC_API_KEY
         sync: false
       - key: ADMIN_EMAIL
