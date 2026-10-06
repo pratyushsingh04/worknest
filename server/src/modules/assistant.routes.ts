@@ -7,6 +7,7 @@ import { projectScope } from '../lib/access';
 import type { AuthUser } from '../lib/auth';
 import { localDate } from '../lib/dates';
 import { HttpError, tooManyRequests } from '../lib/errors';
+import { basicAnswer } from '../lib/basic-assistant';
 import { freeProvider, runFreeAssistant, type RunnableTool } from '../lib/free-ai';
 import { progressFor } from '../lib/progress';
 import { hit } from '../lib/rate-limit';
@@ -21,7 +22,7 @@ assistantRouter.use(requireAuth);
 const MODEL = 'claude-opus-5-5';
 // Claude when its key is set; otherwise a free-tier provider (Gemini or Groq) if one is configured.
 const hasClaude = () => !!(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN);
-const enabled = () => hasClaude() || !!freeProvider();
+const hasModel = () => hasClaude() || !!freeProvider();
 let client: Anthropic | null = null;
 const anthropic = () => (client ??= new Anthropic());
 
@@ -310,7 +311,8 @@ Write the way a sharp colleague would in chat: lead with the answer, keep it sho
 }
 
 assistantRouter.get('/status', (_req, res) => {
-  res.json({ enabled: enabled() });
+  // Always on: with no model configured it answers a fixed set of questions from templates.
+  res.json({ enabled: true, mode: hasModel() ? 'ai' : 'basic' });
 });
 
 const chatBody = z.object({
@@ -323,17 +325,26 @@ const chatBody = z.object({
 
 assistantRouter.post('/chat', async (req, res) => {
   const user = currentUser(req);
-  if (!enabled()) throw new HttpError(503, 'The assistant is not switched on for this server yet.');
   const retry = hit(`assistant:${user.id}`, 40, 60 * 60 * 1000);
   if (retry) throw tooManyRequests(retry);
   const { messages } = chatBody.parse(req.body);
   const tools = user.role === 'CLIENT' ? clientTools(user) : staffTools(user);
   const fallbackReply = "I couldn't put an answer together for that. Try asking it another way.";
 
+  const plain = tools as unknown as RunnableTool[];
+  const basic = async () => res.json({ reply: await basicAnswer(messages[messages.length - 1].content, user.role, plain), mode: 'basic' });
+  if (!hasModel()) return basic();
+
   const free = hasClaude() ? null : freeProvider();
   if (free) {
-    const reply = await runFreeAssistant(free, await systemPrompt(user), messages, tools as unknown as RunnableTool[]);
-    return res.json({ reply: reply || fallbackReply });
+    try {
+      const reply = await runFreeAssistant(free, await systemPrompt(user), messages, plain);
+      return res.json({ reply: reply || fallbackReply, mode: 'ai' });
+    } catch (err) {
+      // A free tier runs out or changes under you; the template answers keep the assistant useful.
+      console.error('Assistant: free provider failed, answering in basic mode.', err instanceof Error ? err.message : err);
+      return basic();
+    }
   }
 
   try {

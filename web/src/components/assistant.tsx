@@ -73,6 +73,8 @@ export function Assistant({ tone }: { tone: "light" | "dark" }) {
   const dark = tone === "dark";
   const [open, setOpen] = useState(false);
   const [enabled, setEnabled] = useState<boolean | null>(null);
+  // "basic" means no language model is configured and answers come from templates.
+  const [mode, setMode] = useState<"ai" | "basic">("ai");
   const [turns, setTurns] = useState<Turn[]>([]);
   const [draft, setDraft] = useState("");
   const [thinking, setThinking] = useState(false);
@@ -82,8 +84,11 @@ export function Assistant({ tone }: { tone: "light" | "dark" }) {
   // Ask the server whether the assistant is switched on the first time the panel opens.
   useEffect(() => {
     if (!open || enabled !== null) return;
-    api.get<{ enabled: boolean }>("/assistant/status").then(
-      (s) => setEnabled(s.enabled),
+    api.get<{ enabled: boolean; mode?: "ai" | "basic" }>("/assistant/status").then(
+      (s) => {
+        setEnabled(s.enabled);
+        setMode(s.mode ?? "ai");
+      },
       () => setEnabled(false),
     );
   }, [open, enabled]);
@@ -169,7 +174,7 @@ export function Assistant({ tone }: { tone: "light" | "dark" }) {
                 </span>
                 <div>
                   <p className="text-sm font-semibold">Ask WorkNest</p>
-                  <p className={clsx("text-xs", dark ? "text-white/45" : "text-muted")}>Answers from your live data. Read-only.</p>
+                  <p className={clsx("text-xs", dark ? "text-white/45" : "text-muted")}>{mode === "basic" ? "Basic mode · answers from your live data" : "Answers from your live data. Read-only."}</p>
                 </div>
               </div>
               <button onClick={() => setOpen(false)} className={clsx("rounded-full p-2 transition-colors", dark ? "text-white/50 hover:bg-white/10 hover:text-white" : "text-muted hover:bg-canvas hover:text-ink")} aria-label="Close the assistant">
