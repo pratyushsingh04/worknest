@@ -11,6 +11,8 @@ interface Turn {
   role: "user" | "assistant";
   content: string;
   failed?: boolean;
+  /** The model was unavailable, so this answer came from the built-in templates. */
+  basic?: boolean;
 }
 
 const API_ORIGIN = process.env.NEXT_PUBLIC_SOCKET_URL ?? "http://localhost:4000";
@@ -25,16 +27,16 @@ const starters = {
  * Answers go straight to the API rather than through the web proxy, because a reply
  * can take longer than the proxy waits. A one-minute token stands in for the cookie.
  */
-async function ask(messages: Turn[]): Promise<string> {
+async function ask(messages: Turn[]): Promise<{ reply: string; basic: boolean }> {
   const { token } = await api.get<{ token: string }>("/auth/socket-token");
   const res = await fetch(`${API_ORIGIN}/api/assistant/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
     body: JSON.stringify({ messages: messages.map(({ role, content }) => ({ role, content })) }),
   });
-  const data = (await res.json().catch(() => ({}))) as { reply?: string; error?: string };
+  const data = (await res.json().catch(() => ({}))) as { reply?: string; error?: string; mode?: "ai" | "basic" };
   if (!res.ok || !data.reply) throw new Error(data.error ?? "The assistant could not answer just now. Please try again.");
-  return data.reply;
+  return { reply: data.reply, basic: data.mode === "basic" };
 }
 
 /** Bold and short lists are all the assistant uses, so that is all this renders. */
@@ -114,8 +116,8 @@ export function Assistant({ tone }: { tone: "light" | "dark" }) {
     setDraft("");
     setThinking(true);
     try {
-      const reply = await ask(history);
-      setTurns((t) => [...t, { role: "assistant", content: reply }]);
+      const { reply, basic } = await ask(history);
+      setTurns((t) => [...t, { role: "assistant", content: reply, basic }]);
     } catch (err) {
       setTurns((t) => [...t.slice(0, -1), { role: "user", content, failed: true }, { role: "assistant", content: err instanceof Error ? err.message : "Something went wrong.", failed: true }]);
     } finally {
@@ -215,6 +217,7 @@ export function Assistant({ tone }: { tone: "light" | "dark" }) {
                       )}
                     >
                       {t.role === "user" ? t.content : <Rich text={t.content} />}
+                      {t.basic && mode === "ai" && <p className={clsx("mt-2 text-[11px]", dark ? "text-white/35" : "text-muted")}>The AI model was busy, so this is a basic answer.</p>}
                     </div>
                   </motion.div>
                 ))

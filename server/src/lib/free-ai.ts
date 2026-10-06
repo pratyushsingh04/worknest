@@ -23,16 +23,18 @@ interface Provider {
   url: string;
   key: string;
   model: string;
+  /** Tried in order when the main model is overloaded or out of free quota. */
+  fallbacks: string[];
 }
 
 /** Whichever free provider has a key set. AI_MODEL overrides the default model for it. */
 export function freeProvider(): Provider | null {
   const model = process.env.AI_MODEL?.trim();
   if (process.env.GEMINI_API_KEY) {
-    return { name: 'Gemini', url: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', key: process.env.GEMINI_API_KEY, model: model || 'gemini-3.8-flash' };
+    return { name: 'Gemini', url: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', key: process.env.GEMINI_API_KEY, model: model || 'gemini-3.8-flash', fallbacks: ['gemini-3.7-flash', 'gemini-3.5-flash-lite'] };
   }
   if (process.env.GROQ_API_KEY) {
-    return { name: 'Groq', url: 'https://api.groq.com/openai/v1/chat/completions', key: process.env.GROQ_API_KEY, model: model || 'llama-3.3-70b-versatile' };
+    return { name: 'Groq', url: 'https://api.groq.com/openai/v1/chat/completions', key: process.env.GROQ_API_KEY, model: model || 'llama-3.3-70b-versatile', fallbacks: ['openai/gpt-oss-120b'] };
   }
   return null;
 }
@@ -44,13 +46,29 @@ export async function runFreeAssistant(provider: Provider, system: string, histo
   const messages: ChatMessage[] = [{ role: 'system', content: system }, ...history];
   const toolDefs = tools.map((t) => ({ type: 'function' as const, function: { name: t.name, description: t.description ?? '', parameters: t.input_schema } }));
 
-  for (let round = 0; round < MAX_ROUNDS; round++) {
-    const res = await fetch(provider.url, {
+  // Free tiers get busy. A busy or exhausted model is retried once, then swapped for the next one.
+  const models = [provider.model, ...provider.fallbacks.filter((m) => m !== provider.model)];
+  let current = 0;
+  const post = (model: string) =>
+    fetch(provider.url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${provider.key}` },
-      body: JSON.stringify({ model: provider.model, messages, tools: toolDefs, tool_choice: 'auto' }),
-      signal: AbortSignal.timeout(60_000),
+      body: JSON.stringify({ model, messages, tools: toolDefs, tool_choice: 'auto' }),
+      signal: AbortSignal.timeout(45_000),
     });
+  const busy = (status: number) => status === 429 || status === 500 || status === 503 || status === 404;
+
+  for (let round = 0; round < MAX_ROUNDS; round++) {
+    let res = await post(models[current]);
+    if (res.status === 503 || res.status === 500) {
+      await new Promise((r) => setTimeout(r, 1500));
+      res = await post(models[current]);
+    }
+    while (busy(res.status) && current < models.length - 1) {
+      console.warn(`Assistant (${provider.name}): ${models[current]} answered ${res.status}, trying ${models[current + 1]}.`);
+      current += 1;
+      res = await post(models[current]);
+    }
 
     if (!res.ok) {
       const detail = (await res.text().catch(() => '')).slice(0, 300);
