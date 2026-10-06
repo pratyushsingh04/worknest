@@ -1,5 +1,4 @@
 import { Router } from 'express';
-import { randomBytes } from 'node:crypto';
 import { z } from 'zod';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
@@ -11,7 +10,8 @@ import { emit, rooms } from '../lib/socket';
 import { summariseMeeting } from '../lib/summarise';
 import { currentUser, param, requireAuth, requireStaff } from '../middleware/auth';
 
-// Meetings between people inside one company: schedule, join, take notes, summarise.
+// Meetings between people inside one company: schedule, take notes, summarise.
+// The video call is signalled over the socket (see lib/socket.ts), not through these routes.
 export const meetingsRouter = Router();
 meetingsRouter.use(requireAuth, requireStaff);
 
@@ -37,9 +37,6 @@ async function assertColleagues(companyId: string, ids: string[]) {
   const count = await prisma.user.count({ where: { id: { in: ids }, companyId, isActive: true, role: { not: 'CLIENT' } } });
   if (count !== new Set(ids).size) throw badRequest('Everyone invited must be an active member of your company');
 }
-
-/** A free video room nobody else can guess. Used when the organiser gives no link of their own. */
-const videoRoom = () => `https://meet.jit.si/WorkNest-${randomBytes(9).toString('base64url')}`;
 
 const body = z.object({
   title: z.string().trim().min(2).max(120),
@@ -82,7 +79,8 @@ meetingsRouter.post('/', async (req, res) => {
     data: {
       ...data,
       agenda: data.agenda || null,
-      joinUrl: data.joinUrl || videoRoom(),
+      // The call itself runs inside WorkNest; a link is only kept if the organiser adds an outside one.
+      joinUrl: data.joinUrl || null,
       companyId: user.companyId,
       organiserId: user.id,
       attendees: { create: invited.map((userId) => ({ userId })) },
@@ -119,7 +117,7 @@ meetingsRouter.patch('/:id', async (req, res) => {
     const added = keep.filter((id) => !existing.attendees.some((a) => a.userId === id));
     for (const id of added) emit(rooms.user(id), 'notification', { message: `You were added to "${existing.title}"` });
   }
-  const meeting = await prisma.meeting.update({ where: { id: existing.id }, data: { ...data, ...(data.joinUrl === null ? { joinUrl: videoRoom() } : {}) }, include: meetingInclude });
+  const meeting = await prisma.meeting.update({ where: { id: existing.id }, data, include: meetingInclude });
   for (const a of meeting.attendees) emit(rooms.user(a.userId), 'meeting:changed', { id: meeting.id });
   res.json({ meeting });
 });

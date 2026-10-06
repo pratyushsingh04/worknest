@@ -48,7 +48,7 @@ async function main() {
 
   const startsAt = new Date(Date.now() + 3600_000).toISOString();
   r = await b('POST', '/meetings', { title: 'Sprint planning', agenda: 'Plan the checkout work', startsAt, durationMin: 45, attendeeIds: [adminId] });
-  ok('an employee schedules a meeting and gets a video link', r.status === 201 && r.data.meeting.joinUrl.startsWith('https://meet.jit.si/') && r.data.meeting.attendees.length === 2, r.data);
+  ok('an employee schedules a meeting with a colleague', r.status === 201 && r.data.meeting.joinUrl === null && r.data.meeting.attendees.length === 2, r.data);
   const id = r.data.meeting.id;
 
   r = await b('POST', '/meetings', { title: 'Bad invite', startsAt, attendeeIds: [outsiderId] });

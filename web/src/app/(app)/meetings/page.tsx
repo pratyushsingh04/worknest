@@ -111,7 +111,7 @@ export default function MeetingsPage() {
         <Card>
           <EmptyState
             title={tab === "upcoming" ? "Nothing scheduled" : "No past meetings yet"}
-            description={tab === "upcoming" ? "Schedule a meeting and everyone invited gets a video link and a notification." : "Once a meeting is over it moves here, with its notes and summary."}
+            description={tab === "upcoming" ? "Schedule a meeting and everyone invited is notified. The video call opens right here in WorkNest." : "Once a meeting is over it moves here, with its notes and summary."}
             action={tab === "upcoming" && <Button onClick={() => setScheduling(true)}>Schedule a meeting</Button>}
           />
         </Card>
@@ -143,7 +143,7 @@ function ScheduleModal({ onClose }: { onClose: () => void }) {
   const router = useRouter();
   const toast = useToast();
   const people = useApi<{ users: Staff[] }>("/users");
-  const [form, setForm] = useState(() => ({ title: "", agenda: "", startsAt: defaultStart(), durationMin: "30", joinUrl: "" }));
+  const [form, setForm] = useState(() => ({ title: "", agenda: "", startsAt: defaultStart(), durationMin: "30" }));
   const [invited, setInvited] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -159,7 +159,6 @@ function ScheduleModal({ onClose }: { onClose: () => void }) {
         agenda: form.agenda || null,
         startsAt: new Date(form.startsAt).toISOString(),
         durationMin: Number(form.durationMin),
-        joinUrl: form.joinUrl || null,
         attendeeIds: invited,
       });
       toast(invited.length ? `Scheduled. ${invited.length} ${invited.length === 1 ? "person has" : "people have"} been notified.` : "Scheduled.");
@@ -220,13 +219,9 @@ function ScheduleModal({ onClose }: { onClose: () => void }) {
           )}
         </div>
 
-        <Field label="Video link" hint="Leave empty and WorkNest creates a private Jitsi room. Or paste your own Meet or Zoom link.">
-          <Input type="url" maxLength={300} value={form.joinUrl} onChange={(e) => setForm({ ...form, joinUrl: e.target.value })} placeholder="https://" />
-        </Field>
-
         <div className="flex items-center justify-between gap-3 pt-1">
           <p className="flex items-center gap-1.5 text-xs text-muted">
-            <Video className="size-3.5" /> Video link
+            <Video className="size-3.5" /> Video call inside WorkNest
             <FileText className="ml-2 size-3.5" /> Notes
             <Sparkles className="ml-2 size-3.5" /> Summary
           </p>

@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowLeft, CalendarClock, Check, Clock, Copy, ListChecks, Sparkles, Trash2, UserRound, Video } from "lucide-react";
+import { MeetingCall } from "@/components/meeting-call";
 import { easeOut } from "@/components/motion";
 import { Avatar, Badge, Button, Card, CardHeader, ErrorState, PageLoader, Textarea, useToast } from "@/components/ui";
 import { api, errorMessage } from "@/lib/api";
@@ -27,6 +28,7 @@ export default function MeetingPage() {
   const [draft, setDraft] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [summarising, setSummarising] = useState(false);
+  const [inCall, setInCall] = useState(false);
 
   const load = useCallback(
     () =>
@@ -127,11 +129,9 @@ export default function MeetingPage() {
             {m.agenda && <p className="mt-3 max-w-2xl whitespace-pre-line text-white/65">{m.agenda}</p>}
           </div>
           <div className="flex shrink-0 flex-wrap gap-2">
-            {m.joinUrl && (
-              <a href={m.joinUrl} target="_blank" rel="noopener noreferrer" className="inline-flex h-11 items-center gap-2 rounded-xl bg-white px-5 text-sm font-semibold text-night transition-transform hover:scale-[1.03]">
-                <Video className="size-4" /> Join the call
-              </a>
-            )}
+            <button onClick={() => setInCall(true)} className="inline-flex h-11 items-center gap-2 rounded-xl bg-white px-5 text-sm font-semibold text-night transition-transform hover:scale-[1.03]">
+              <Video className="size-4" /> Join the call
+            </button>
             {permissions.canEdit && (
               <button onClick={cancel} className="inline-flex h-11 items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 text-sm font-medium text-white/80 hover:bg-white/10">
                 <Trash2 className="size-4" /> Cancel
@@ -257,16 +257,31 @@ export default function MeetingPage() {
               </li>
             ))}
           </ul>
-          {m.joinUrl && (
-            <div className="border-t border-line px-5 py-4">
-              <p className="text-xs font-medium tracking-wide text-muted uppercase">Video link</p>
-              <a href={m.joinUrl} target="_blank" rel="noopener noreferrer" className="mt-1 block truncate text-sm text-brand hover:underline">
-                {m.joinUrl}
-              </a>
-            </div>
-          )}
+          <div className="flex items-start gap-2.5 border-t border-line px-5 py-4 text-sm text-muted">
+            <Video className="mt-0.5 size-4 shrink-0 text-brand" />
+            <p>The call runs right here in WorkNest. No link to share and nothing to install: everyone invited presses &quot;Join the call&quot; on this page.</p>
+          </div>
         </Card>
       </div>
+
+      {inCall && (
+        <MeetingCall
+          meetingId={m.id}
+          title={m.title}
+          onClose={() => setInCall(false)}
+          notes={
+            <div className="flex h-full flex-col gap-3">
+              <Textarea rows={14} maxLength={40000} value={notes} onChange={(e) => setDraft(e.target.value)} placeholder="Type as you talk: what was decided and who is doing what." className="min-h-64 flex-1 leading-relaxed" />
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs text-muted">{dirty ? "Unsaved changes" : m.notes ? "Saved" : "Nothing written yet"}</p>
+                <Button size="sm" onClick={saveNotes} loading={saving} disabled={!dirty}>
+                  Save notes
+                </Button>
+              </div>
+            </div>
+          }
+        />
+      )}
     </>
   );
 }
