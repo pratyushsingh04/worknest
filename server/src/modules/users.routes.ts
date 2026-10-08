@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import { badRequest, conflict, notFound } from '../lib/errors';
 import { logActivity } from '../lib/activity';
-import { currentUser, param, requireAuth, requireRole } from '../middleware/auth';
+import { currentUser, param, requireAuth, requireRole, forgetSession } from '../middleware/auth';
 
 export const usersRouter = Router();
 usersRouter.use(requireAuth, requireRole('ADMIN', 'MANAGER', 'EMPLOYEE'));
@@ -84,5 +84,6 @@ usersRouter.patch('/:id', requireRole('ADMIN'), async (req, res) => {
   await assertManagerInCompany(admin.companyId, body.managerId);
 
   const user = await prisma.user.update({ where: { id: target.id }, data: body, select: staffSelect });
+  forgetSession(target.id);
   res.json({ user });
 });

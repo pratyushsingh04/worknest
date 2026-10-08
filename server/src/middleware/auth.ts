@@ -12,6 +12,25 @@ declare global {
   }
 }
 
+// Looking the account up on every request costs a database round trip each time, so the answer
+// is remembered briefly. Changing someone's role or deactivating them clears it at once.
+const SESSION_TTL_MS = 30_000;
+const sessions = new Map<string, { user: AuthUser | null; expires: number }>();
+
+export function forgetSession(userId: string) {
+  sessions.delete(userId);
+}
+
+async function accountFor(id: string): Promise<AuthUser | null> {
+  const hit = sessions.get(id);
+  if (hit && hit.expires > Date.now()) return hit.user;
+  const row = await prisma.user.findUnique({ where: { id }, select: { id: true, companyId: true, role: true, isActive: true } });
+  const user = row?.isActive ? { id: row.id, companyId: row.companyId ?? '', role: row.role } : null;
+  if (sessions.size > 5000) sessions.clear();
+  sessions.set(id, { user, expires: Date.now() + SESSION_TTL_MS });
+  return user;
+}
+
 export async function requireAuth(req: Request, _res: Response, next: NextFunction) {
   const header = req.headers.authorization;
   const token = req.cookies?.[AUTH_COOKIE] ?? (header?.startsWith('Bearer ') ? header.slice(7) : undefined);
@@ -23,10 +42,10 @@ export async function requireAuth(req: Request, _res: Response, next: NextFuncti
     return next(unauthorized('Session expired, please sign in again'));
   }
   // The token only proves identity. Role and status come from the database, so a
-  // deactivated account or a changed role takes effect immediately, not when the token expires.
-  const user = await prisma.user.findUnique({ where: { id: claims.id }, select: { id: true, companyId: true, role: true, isActive: true } });
-  if (!user || !user.isActive) return next(unauthorized('This account is no longer active'));
-  req.user = { id: user.id, companyId: user.companyId ?? '', role: user.role };
+  // deactivated account or a changed role takes effect right away, not when the token expires.
+  const user = await accountFor(claims.id);
+  if (!user) return next(unauthorized('This account is no longer active'));
+  req.user = user;
   next();
 }
 

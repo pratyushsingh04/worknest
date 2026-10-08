@@ -15,6 +15,9 @@ const RETRY_DELAYS = [2000, 3000, 5000, ...Array<number>(17).fill(10000)];
 export const WAKING_EVENT = "wn:waking";
 const announce = (waking: boolean) => typeof window !== "undefined" && window.dispatchEvent(new CustomEvent(WAKING_EVENT, { detail: waking }));
 
+/** The last answer for each GET, so a page you have already opened shows at once while it refreshes. */
+export const apiCache = new Map<string, unknown>();
+
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   for (let attempt = 0; ; attempt++) {
     const res = await fetch(`/api${path}`, {
@@ -31,7 +34,14 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     if (attempt > 0) announce(false);
     if (!res) throw new ApiError(0, "Can't reach the server. Check your connection and try again.");
     const data = await res.json().catch(() => ({}));
+    // Signing in or out changes whose data this is.
+    if (method !== "GET" && path.startsWith("/auth/")) apiCache.clear();
+    if (res.status === 401) apiCache.clear();
     if (!res.ok) throw new ApiError(res.status, data.error ?? (WAKING.has(res.status) ? "The server is still starting up. Please try again in a moment." : `Request failed (${res.status})`));
+    if (method === "GET") {
+      if (apiCache.size > 200) apiCache.clear();
+      apiCache.set(path, data);
+    }
     return data as T;
   }
 }

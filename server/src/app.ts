@@ -1,4 +1,5 @@
 import express from 'express';
+import compression from 'compression';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
@@ -28,6 +29,16 @@ export function createApp() {
   const app = express();
   app.set('trust proxy', 1);
   app.use(helmet());
+  app.use(compression());
+  // Anything slow shows up in the host's logs with how long it took.
+  app.use((req, res, next) => {
+    const started = Date.now();
+    res.on('finish', () => {
+      const ms = Date.now() - started;
+      if (ms > 700) console.warn(`slow: ${req.method} ${req.originalUrl.split('?')[0]} ${res.statusCode} ${ms}ms`);
+    });
+    next();
+  });
   app.use(cors({ origin: config.clientOrigin, credentials: true }));
   app.use(express.json({ limit: '1mb' }));
   app.use(cookieParser());

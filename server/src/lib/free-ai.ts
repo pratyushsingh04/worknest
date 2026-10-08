@@ -49,13 +49,22 @@ export async function runFreeAssistant(provider: Provider, system: string, histo
   // Free tiers get busy. A busy or exhausted model is retried once, then swapped for the next one.
   const models = [provider.model, ...provider.fallbacks.filter((m) => m !== provider.model)];
   let current = 0;
-  const post = (model: string) =>
+  // These are lookups, not puzzles: asking the model to think less makes each round much quicker.
+  // A model that does not know the setting rejects it once, and it is left out from then on.
+  let quick = true;
+  const send = (model: string) =>
     fetch(provider.url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${provider.key}` },
-      body: JSON.stringify({ model, messages, tools: toolDefs, tool_choice: 'auto' }),
+      body: JSON.stringify({ model, messages, tools: toolDefs, tool_choice: 'auto', ...(quick ? { reasoning_effort: 'low' } : {}) }),
       signal: AbortSignal.timeout(45_000),
     });
+  const post = async (model: string) => {
+    const res = await send(model);
+    if (res.status !== 400 || !quick) return res;
+    quick = false;
+    return send(model);
+  };
   const busy = (status: number) => status === 429 || status === 500 || status === 503 || status === 404;
 
   for (let round = 0; round < MAX_ROUNDS; round++) {
@@ -88,18 +97,20 @@ export async function runFreeAssistant(provider: Provider, system: string, histo
 
     messages.push({ role: 'assistant', content: message.content ?? null, tool_calls: calls });
     // Every call gets an answer, even a failed one, or the next request is rejected.
-    for (const call of calls) {
-      const tool = tools.find((t) => t.name === call.function.name);
-      let result: string;
-      try {
-        if (!tool) throw new Error(`Unknown tool ${call.function.name}`);
-        const input = call.function.arguments ? JSON.parse(call.function.arguments) : {};
-        result = String(await tool.run(input));
-      } catch (err) {
-        result = JSON.stringify({ error: err instanceof Error ? err.message : 'Tool failed' });
-      }
-      messages.push({ role: 'tool', tool_call_id: call.id, content: result });
-    }
+    // They only read data, so they all run at once.
+    const results = await Promise.all(
+      calls.map(async (call) => {
+        const tool = tools.find((t) => t.name === call.function.name);
+        try {
+          if (!tool) throw new Error(`Unknown tool ${call.function.name}`);
+          const input = call.function.arguments ? JSON.parse(call.function.arguments) : {};
+          return String(await tool.run(input));
+        } catch (err) {
+          return JSON.stringify({ error: err instanceof Error ? err.message : 'Tool failed' });
+        }
+      }),
+    );
+    calls.forEach((call, i) => messages.push({ role: 'tool', tool_call_id: call.id, content: results[i] }));
   }
   return '';
 }
