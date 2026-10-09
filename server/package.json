@@ -6,6 +6,7 @@
   "scripts": {
     "db:start": "tsx scripts/dev-db.mts",
     "db:push": "prisma db push",
+    "db:move": "tsx scripts/move-db.mts",
     "dev": "tsx watch src/index.ts",
     "build": "prisma generate && tsc",
     "start": "node dist/index.js",
